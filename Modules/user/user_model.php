@@ -20,7 +20,6 @@ class User
     private $email_verification = false;
     private $redis;
     private $log;
-    
     public $appname;
 
     public function __construct($mysqli,$redis)
@@ -146,7 +145,10 @@ class User
         //name of cookie 
         session_name('EMONCMS_SESSID'); 
         //get subdir installation 
-        $cookie_params['path'] = dirname($_SERVER['SCRIPT_NAME'])."/"; 
+        $cookie_params['path'] = dirname($_SERVER['SCRIPT_NAME']);
+        // Add a slash if the last character isn't already a slash
+        if (substr($cookie_params['path'], -1) !== '/')
+            $cookie_params['path'] .= '/';
         //not pass cookie to javascript 
         $cookie_params['httponly'] = 1; 
         
@@ -404,6 +406,8 @@ class User
                     $this->rememberme->clearCookie();
                 }
             }
+            
+            if ($this->redis) $this->redis->hmset("user:".$userData_id,array('apikey_write'=>$userData_apikey_write));
 
             return array('success'=>true, 'message'=>_("Login successful"), 'startingpage'=>$userData_startingpage);
         }
@@ -567,6 +571,16 @@ class User
         $stmt->bind_param("si", $email, $userid);
         $stmt->execute();
         $stmt->close();
+
+        // $stmt = $this->mysqli->prepare("UPDATE users SET email_verified='0' WHERE id = ?");
+        // $stmt->bind_param("i", $userid);
+        // $stmt->execute();
+        // $stmt->close();
+        
+        // global $session;
+        // $session['emailverified'] = 0;
+        // $_SESSION['emailverified'] = 0;
+        
         return array('success'=>true, 'message'=>_("Email updated"));
     }
 
@@ -584,9 +598,9 @@ class User
     public function get_name($userid)
     {
         $userid = (int) $userid;
-        $result = $this->mysqli->query("SELECT username FROM users WHERE id = '$userid';");
+        $result = $this->mysqli->query("SELECT name FROM users WHERE id = '$userid';");
         $row = $result->fetch_array();
-        return $row['username'];
+        return $row['name'];
     }
 
     public function get_email($userid)
@@ -805,6 +819,100 @@ class User
         $stmt->close();
         
         return $users;
+    }
+    /**
+     * saves user preference to local device
+     * currently uses cookies
+     *
+     * @param array $optIn
+     * @return array
+     */
+    public function set_preferences ($userid, $preference) {
+        $userid = (int) $userid;
+        // add to this array to allow more properties
+        $allowed_properties = array('deviceView');
+
+        // overwrite the current settings with the new
+        $get_preferences = $this->get_preferences($userid);
+        $current_preferences = !empty($get_preferences['preferences']) ? $get_preferences['preferences'] : array();
+        // array_merge only works on top level assoc arrays (not nested)
+        $preferences = array_merge($current_preferences,$preference);
+        
+        // set the sanitize features for each allowed property
+        $filters = array(
+            'deviceView'=>FILTER_VALIDATE_BOOLEAN
+        );
+        $options = array(
+            'deviceView'=>array(
+                'flags'=>FILTER_NULL_ON_FAILURE
+            )
+        );
+        // santize the passed preferences
+        $filtered = array(); // clean preferences
+        foreach($preferences as $key=>$value) {
+            if (in_array($key, $allowed_properties)) {
+                $filtered[$key] = filter_var($value, $filters[$key], $options[$key]);
+            }
+        }
+
+        // encode the sanitized preferences as a JSON string
+        $json = json_encode($filtered, JSON_NUMERIC_CHECK);
+
+        $success = false;
+        $error = '';
+        if ($stmt = $this->mysqli->prepare("UPDATE users SET preferences = ? WHERE id = ?")) {
+            $stmt->bind_param("si", $json, $userid);
+            $success = $stmt->execute();
+            $error = $stmt->error;
+            $stmt->close();
+        } else {
+            $this->log->error("Error preparing SQL for user preferences");
+            return false;
+        }
+        
+        if(!$success){
+            $this->log->error("Error writing to user table");
+            return false;
+        } else {
+            $this->log->info("Succesfully updated user preferences");
+            return true;
+        }
+    }
+
+    /**
+     * returns all or individual user preference
+     * @param int $userid
+     * @param string $key
+     *
+     * @return array
+     */
+    public function get_preferences ($userid, $property = null) {
+        $stmt = $this->mysqli->prepare("SELECT preferences FROM users WHERE id = ?");
+        $preferences = false;
+        if ($stmt) {
+            $stmt->bind_param("i", $userid);
+            $stmt->execute();
+            $stmt->bind_result($preferences);
+            $success = $stmt->fetch();
+            $stmt->close();
+        }else{
+            return array('success'=>false,'message'=>_('Please update database'));
+        }
+        $json = json_decode($preferences,1);
+        // return data and/or success/error message
+        if (!empty($json)) {
+            // only return single property value if called with a $property param
+            if(!empty($property) && $json[$property]===false) {
+                return $json[$property];
+            }elseif(!empty($property) && !empty($json[$property])){
+                return $json[$property];
+            } else {
+                return $json;
+            }
+        } else {
+            return false;
+            // return array('success'=>true, 'message'=>_('Empty'));
+        }
     }
 }
 
