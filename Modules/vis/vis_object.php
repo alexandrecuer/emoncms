@@ -123,6 +123,12 @@
             array('mid',dgettext('vis_messages','mid'),8)
         )),
         
+        'psychograph' => array ('label'=>dgettext('vis_messages','Psychometric Diagram'), 'action'=>'psychograph', 'options'=>array(
+            array('mid',dgettext('vis_messages','mid'),8),
+            array('hrtohabs',dgettext('vis_messages','% to abso.'),4),
+            array('givoni',dgettext('vis_messages','givoni style?'),4)
+        )),
+        
         'compare' => array ('label'=>dgettext('vis_messages','Compare'), 'action'=>'compare', 'options'=>array(
             array('feedA',dgettext('vis_messages','Feed A'),1),
             array('feedB',dgettext('vis_messages','Feed B'),1)
