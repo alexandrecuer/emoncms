@@ -31,7 +31,7 @@ global $path, $enable_rememberme, $enable_password_reset, $theme;
 
 <div class="main">
   <div class="well">
-    <img src="<?php echo $path; ?>Theme/<?php echo $theme; ?>/logo_login.png" alt="Login" width="256" height="46" />
+    <img src="<?php echo $path; ?>Theme/<?php echo $theme; ?>/themis.svg" alt="Login" width="256" height="84" />
         
     <div class="login-container">
         <div id="login-form">
@@ -103,6 +103,8 @@ global $path, $enable_rememberme, $enable_password_reset, $theme;
             <div id="passwordresetmessage"></div>
         </div>
     </div>
+    <br>
+    <center><img src="<?php echo $path; ?>Theme/<?php echo $theme; ?>/cerema.svg" alt="cerema" width="35" height="35" /></center>
   </div>
 </div>
 
