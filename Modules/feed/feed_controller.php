@@ -44,6 +44,8 @@ function feed_controller()
             }
         }
         else if ($route->action == "api" && $session['write']) return view("Modules/feed/Views/feedapi_view.php",array());
+        else if (!$session['read']) return ''; // empty strings force user back to login
+        else return EMPTY_ROUTE; // this string displays error
     }
 
     else if ($route->format == 'json')
@@ -132,11 +134,11 @@ function feed_controller()
                                 }
                             // feed/average --------------------------------------------   
                             } else if ($route->action == 'average') {
-                                if (isset($_GET['interval'])) {
-                                    $results[$key]['data'] = $feed->get_average($feedid,get('start'),get('end'),get('interval'));
-                                } else if (isset($_GET['mode'])) {
+                                if (isset($_GET['mode'])) {
                                     $results[$key]['data'] = $feed->get_average_DMY($feedid,get('start'),get('end'),get('mode'));
-                                }
+                                } else if (isset($_GET['interval'])) {
+                                    $results[$key]['data'] = $feed->get_average($feedid,get('start'),get('end'),get('interval'));
+                                } 
                             }
                         }
                     } else {
@@ -274,5 +276,5 @@ function feed_controller()
         }
     }
 
-    return array('content'=>'<br>Action not found');
+    return array('content'=>EMPTY_ROUTE);
 }

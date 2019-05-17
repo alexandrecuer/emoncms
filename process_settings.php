@@ -95,6 +95,7 @@ if(file_exists(dirname(__FILE__)."/settings.php"))
         if (!isset($mqtt_server['user'])) $mqtt_server['user'] = null;
         if (!isset($mqtt_server['password'])) $mqtt_server['password'] = null;
         if (!isset($mqtt_server['basetopic'])) $mqtt_server['basetopic'] = "nodes";
+        if (!isset($mqtt_server['client_id'])) $mqtt_server['client_id'] = "emoncms";
     }
 
     if (!isset($feed_settings)) $feed_settings = array();
@@ -111,6 +112,7 @@ if(file_exists(dirname(__FILE__)."/settings.php"))
     if (!isset($menucollapses)) $menucollapses = true;
     if (!isset($favicon)) $favicon = "favicon.png";
     if (!isset($email_verification)) $email_verification = false;
+    if (!isset($admin_show_update)) $admin_show_update = true;
 
     if (!isset($csv_decimal_places) || $csv_decimal_places=="") $csv_decimal_places = 2;
     if (!isset($csv_decimal_place_separator) || $csv_decimal_place_separator=="") $csv_decimal_place_separator = '.';
@@ -122,6 +124,14 @@ if(file_exists(dirname(__FILE__)."/settings.php"))
     
     if (!isset($homedir)) $homedir = "/home/pi";
     if ($homedir!="/home/pi" && !is_dir($homedir)) $error_out .= "<p>homedir is not configured or directory does not exists, check settings: homedir";
+
+    if (!isset($linked_modules_dir)) {
+        if (is_dir("$homedir/modules")) {
+            $linked_modules_dir = "$homedir/modules";
+        } else {
+            $linked_modules_dir = $homedir;
+        }
+    }
 
     if ($error_out!="") {
       echo "<div style='width:600px; background-color:#eee; padding:20px; font-family:arial;'>";

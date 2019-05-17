@@ -15,6 +15,7 @@
     $redis_server = array( 'host'   => 'localhost',
                            'port'   => 6379,
                            'auth'   => '',
+                           'dbnum'   => '',
                            'prefix' => 'emoncms');
 
 
@@ -26,7 +27,8 @@
                           'port'     => 1883,
                           'user'     => '',
                           'password' => '',
-                          'basetopic'=> 'emon'
+                          'basetopic'=> 'emon',
+                          'client_id' => 'emoncms'
                           );
 
 
@@ -149,6 +151,9 @@
 
     // If installed on Emonpi, allow admin menu tools
     $allow_emonpi_admin = false;
+    
+    // Show update section in admin
+    $admin_show_update = true;
 
     //experimental feature for virtual feeds average, default is true, set to false to activate average agregation with all data points, will be slower
     $data_sampling = false;

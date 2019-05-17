@@ -21,9 +21,9 @@ global $path, $enable_rememberme, $enable_password_reset, $theme;
     margin: 0 auto;
     padding: 10px;
   }
-  
+
 </style>
-<script type="text/javascript" src="<?php echo $path; ?>Modules/user/user.js?v=2"></script>
+<script type="text/javascript" src="<?php echo $path; ?>Modules/user/user.js?v=<?php echo $v ?>"></script>
 <br>
 
 
@@ -31,8 +31,8 @@ global $path, $enable_rememberme, $enable_password_reset, $theme;
 
 <div class="main">
   <div class="well">
-    <img src="<?php echo $path; ?>Theme/<?php echo $theme; ?>/themis.svg" alt="Login" width="256" height="84" />
-        
+    <img src="<?php echo $path; ?>Theme/<?php echo $theme; ?>/logo_login.png" alt="Login" width="256" height="46" />
+
     <div class="login-container">
         <div id="login-form">
             <div id="loginblock">
@@ -101,17 +101,16 @@ global $path, $enable_rememberme, $enable_password_reset, $theme;
                 <a id="passwordreset-link-cancel" href="#"><?php echo _('login'); ?></a>
             </div>
             <div id="passwordresetmessage"></div>
+            <p class="pt-1 mb-0"><small id="message" class="muted"><?php echo $message ?></small></p>
+            <input name="referrer" type="hidden" value="<?php echo $referrer ?>">
         </div>
     </div>
-    <br>
-    <center><img src="<?php echo $path; ?>Theme/<?php echo $theme; ?>/cerema.svg" alt="cerema" width="35" height="35" /></center>
   </div>
 </div>
 
 <script>
 "use strict";
 
-var path = "<?php echo $path; ?>";
 var verify = <?php echo json_encode($verify); ?>;
 var register_open = false;
 $("body").addClass("body-login");
@@ -195,18 +194,20 @@ $("#loginmessage").on("click", ".resend-verify", function(){ resend_verify(); })
 function login(){
     var username = $("input[name='username']").val();
     var password = $("input[name='password']").val();
+    var referrer = $("input[name='referrer']").val();
     var rememberme = 0; if ($("#rememberme").is(":checked")) rememberme = 1;
 
-    var result = user.login(username,password,rememberme);
+    var result = user.login(username,password,rememberme,referrer);
 
     if (result.success==undefined) {
         $("#loginmessage").html("<div class='alert alert-error'>"+result+"</div>");
         return false;
-    
+
     } else {
         if (result.success)
         {
-            window.location.href = path+result.startingpage;
+            var href = result.hasOwnProperty('startingpage') ? result.startingpage: path;
+            window.location.href = href;
             return true;
         }
         else
@@ -238,7 +239,7 @@ function register(){
         if (result.success==undefined) {
             $("#loginmessage").html("<div class='alert alert-error'>"+result+"</div>");
             return false;
-        
+
         } else {
             if (result.success) {
                 if (result.verifyemail) {
@@ -250,7 +251,7 @@ function register(){
                 } else {
                     login();
                 }
-                
+
             } else {
                 $("#loginmessage").html("<div class='alert alert-error'>"+result.message+"</div>");
             }
@@ -261,7 +262,7 @@ function register(){
 function resend_verify()
 {
     var username = $("input[name='username']").val();
-    
+
     $.ajax({
       url: path+"user/resend-verify.json",
       data: "&username="+encodeURIComponent(username),
@@ -272,7 +273,7 @@ function resend_verify()
          } else {
              $("#loginmessage").html("<div class='alert alert-error'>"+result.message+"</div>");
          }
-      } 
+      }
     });
 }
 </script>
