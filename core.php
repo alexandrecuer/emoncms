@@ -66,10 +66,13 @@ function controller($controller_name)
 
 function view($filepath, array $args = array())
 {
-    extract($args);
-    ob_start();
-    include "$filepath";
-    $content = ob_get_clean();
+    $content = '';
+    if(file_exists($filepath)) {
+        extract($args);
+        ob_start();
+        include "$filepath";
+        $content = ob_get_clean();
+    }
     return $content;
 }
 
@@ -81,12 +84,26 @@ function get($index)
     if (get_magic_quotes_gpc()) $val = stripslashes($val);
     return $val;
 }
-
+/** 
+ * strip slashes from POST values or null if not set
+ * 
+ * accepts string values in $_POST[index]
+ * accepts array with string values only
+ * 
+ **/
 function post($index)
 {
     $val = null;
-    if (isset($_POST[$index])) $val = rawurldecode($_POST[$index]);
-    
+    if (isset($_POST[$index])) {
+        // PHP automatically converts POST names with brackets `field[]` to type array
+        if(!is_array($_POST[$index])) {
+            $val = rawurldecode($_POST[$index]); // does not decode the plus symbol into spaces
+        } else {
+            // sanitize the array values
+            $SANTIZED_POST  = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+            if(!empty($SANTIZED_POST[$index])) $val = $SANTIZED_POST[$index];
+        }
+    }
     if (get_magic_quotes_gpc()) $val = stripslashes($val);
     return $val;
 }
@@ -245,6 +262,7 @@ function emoncms_error($message) {
 }
 
 function call_hook($function_name, $args){
+    // @todo: make args parameter optional
     $dir = scandir("Modules");
     for ($i=2; $i<count($dir); $i++)
     {

@@ -35,7 +35,7 @@ function makeListLink($params) {
     $href = getKeyValue('href', $params);
     $title = getKeyValue('title', $params);
     $icon = getKeyValue('icon', $params);
-    $active = getAbsoluteUrl(getKeyValue('active', $params));
+    $active = array_filter( (array) getKeyValue('active', $params));
     $sub_items = array_filter( (array) getKeyValue('sub_items', $params));
     $style = array_filter( (array) getKeyValue('style', $params));
     $class = array_filter( (array) getKeyValue('class', $params));
@@ -278,23 +278,6 @@ function getAbsoluteUrl($_passedPath) {
     // encode the url parts like a application/x-www-form-urlencoded
     return encodePath($url);
 }
-
-// /**
-//  * add a css class name to a given list (if not already there)
-//  *
-//  * @param string $classname
-//  * @param mixed $css array | string
-//  * @return string
-//  */
-// function addCssClass($classname, $css) {
-//     if(!is_array($css)) $css = explode(' ', $css);
-//     $css = array_unique(array_filter($css));
-//     if (!in_array($classname, $css)){
-//         $css[] = $classname;
-//     }
-//     $css = implode(' ', $css);
-//     return $css;
-// }
 
 /**
  * for development only
@@ -755,7 +738,10 @@ function getQueryParts($path) {
             $query_items[$key] = $value;
         }
     }
-    return array_filter($query_items);
+    // remove empty url parameters
+    return array_filter($query_items, function($var){
+        return $var !== '';
+    });
 }
 
 /**
