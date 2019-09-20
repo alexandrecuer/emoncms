@@ -17,22 +17,29 @@
     $givoni = (int)(get("givoni"));
 ?>
 <script>
-console.log(path);
-var flot1='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/jquery.flot.min.js"><\/script>';
+//console.log(path);
+var flot0='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/jquery.flot.min.js"><\/script>';
+var flot1='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/jquery.flot.selection.min.js"></script>';
+var flot2='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/jquery.flot.touch.min.js"></script>';
+var flot3='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/jquery.flot.togglelegend.min.js"></script>';
+var flot4='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/jquery.flot.time.min.js"></script>';
+var flot5='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/jquery.flot.stack.min.js"></script>';
+var flot6='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/jquery.flot.canvas.js"></script>';
+var flot7='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/plugin/saveAsImage/lib/base64.js"></script>';
+var flot8='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/plugin/saveAsImage/lib/canvas2image.js"></script>';
+var flot9='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/plugin/saveAsImage/jquery.flot.saveAsImage.js"></script>';
+document.write(flot0);
 document.write(flot1);
+document.write(flot2);
+document.write(flot3);
+document.write(flot4);
+document.write(flot5);
+document.write(flot6);
+document.write(flot7);
+document.write(flot8);
+document.write(flot9);
 </script>
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
-<!--<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.min.js"></script>-->
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.selection.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.touch.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.togglelegend.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.time.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.stack.min.js"></script>
-
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.canvas.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/plugin/saveAsImage/lib/base64.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/plugin/saveAsImage/lib/canvas2image.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/plugin/saveAsImage/jquery.flot.saveAsImage.js"></script>
 
 <script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/common/api.js"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/common/vis.helper.js"></script>
