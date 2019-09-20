@@ -38,21 +38,29 @@ document.write(flot6);
 document.write(flot7);
 document.write(flot8);
 document.write(flot9);
+var common0='<script language="javascript" type="text/javascript" src="'+path+'Modules/vis/visualisations/common/api.js"><\/script>';
+var common1='<script language="javascript" type="text/javascript" src="'+path+'Modules/vis/visualisations/common/vis.helper.js"><\/script>';
+var common2='<script language="javascript" type="text/javascript" src="'+path+'Modules/vis/visualisations/common/inst.js"><\/script>';
+var common3='<script language="javascript" type="text/javascript" src="'+path+'Modules/vis/visualisations/common/proc.js"><\/script>';
+var psycho='<script language="javascript" type="text/javascript" src="'+path+'Modules/vis/visualisations/psychograph.js"><\/script>';
+document.write(common0);
+document.write(common1);
+document.write(common2);
+document.write(common3);
+document.write(psycho);
+var link0='<link href="'+path+'Lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">';
+var link1='<link href="'+path+'Lib/bootstrap/css/bootstrap-responsive.min.css" rel="stylesheet">';
+var link2='<link href="'+path+'Lib/bootstrap-datetimepicker-0.0.11/css/bootstrap-datetimepicker.min.css" rel="stylesheet">';
+document.write(link0);
+document.write(link1);
+document.write(link2);
+var bstrap0='<script language="javascript" type="text/javascript" src="'+path+'Lib/bootstrap-datetimepicker-0.0.11/js/bootstrap-datetimepicker.min.js"><\/script>';
+var bstrap1='<script language="javascript" type="text/javascript" src="'+path+'Lib/bootstrap/js/bootstrap.js"><\/script>';
+document.write(bstrap0);
+document.write(bstrap1);	
 </script>
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
 
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/common/api.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/common/vis.helper.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/inst.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/proc.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/psychograph.js"></script>
-
-<link href="<?php echo $path; ?>Lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-<link href="<?php echo $path; ?>Lib/bootstrap/css/bootstrap-responsive.min.css" rel="stylesheet">
-<link href="<?php echo $path; ?>Lib/bootstrap-datetimepicker-0.0.11/css/bootstrap-datetimepicker.min.css" rel="stylesheet">
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/bootstrap-datetimepicker-0.0.11/js/bootstrap-datetimepicker.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/bootstrap/js/bootstrap.js"></script>
-			 
 <div class = "container-fluid">             
     <div id='graph-buttons' style='position:relative; '>
       <div class='input-prepend input-append'>
