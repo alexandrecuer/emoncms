@@ -11,14 +11,18 @@
 
 <?php
     global $path;
-    $embed = intval(get("embed"));
-    $mid = intval(get("mid"));
-    $hrtohabs = intval(get("hrtohabs"));
-    $givoni = intval(get("givoni"));
+    $embed = (int)(get("embed"));
+    $mid = (int)(get("mid"));
+    $hrtohabs = (int)(get("hrtohabs"));
+    $givoni = (int)(get("givoni"));
 ?>
-
+<script>
+console.log(path);
+var flot1='<script language="javascript" type="text/javascript" src="'+path+'Lib/flot/jquery.flot.min.js"><\/script>';
+document.write(flot1);
+</script>
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.min.js"></script>
+<!--<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.min.js"></script>-->
 <script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.selection.min.js"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.touch.min.js"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.togglelegend.min.js"></script>
