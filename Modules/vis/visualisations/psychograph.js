@@ -5,7 +5,7 @@ function Zone(xmin,xmax,ymin,ymax){
     this.xmax=xmax;
     this.ymin=ymin;
     this.ymax=ymax;
-};
+}
 
 //outline method to draw the zone
 Zone.prototype.outline = function(){
@@ -26,13 +26,13 @@ Zone.prototype.outline = function(){
     XY[i]=[];
     XY[i][0]=this.xmin;XY[i][1]=this.ymin(this.xmin);
     return XY;
-};
+}
 
 //test if a point is inside the zone
 Zone.prototype.includes = function(x,y){
-    if (x<this.xmin) {return false;};
-    if (x>this.xmax) {return false;};
-    if (y<this.ymin(x)) {return false;};
-    if (y>this.ymax(x)) {return false;};
+    if (x<this.xmin) {return false;}
+    if (x>this.xmax) {return false;}
+    if (y<this.ymin(x)) {return false;}
+    if (y>this.ymax(x)) {return false;}
     return true;
 };
