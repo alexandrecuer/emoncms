@@ -22,11 +22,11 @@ Zone.prototype.outline = function(){
     while (x>=this.xmin){
         XY[i]=[];
         XY[i][0]=x;XY[i][1]=this.ymax(x);x-=pas;i+=1;
-    };
+    }
     XY[i]=[];
     XY[i][0]=this.xmin;XY[i][1]=this.ymin(this.xmin);
     return XY;
-}
+};
 
 //test if a point is inside the zone
 Zone.prototype.includes = function(x,y){
