@@ -119,16 +119,10 @@ document.write(bstrap1);
     var embed = url_Params.get("embed");
     var hrtohabs = url_Params.get("hrtohabs");
     var givoni = url_Params.get("givoni");
-    //is apikey necessary ??
-    var apikey;
-    $.ajax({ 
-        url: path+"user/get.json",
-        async: true,
-        success(data)
-         {
-         apikey=data.apikey_read;
-         }
-    });
+    var apikey="";
+    if (url_Params.has("apikey")){
+      apikey = url_Params.get("apikey");
+    }
     var datetimepicker_previous = null;
     var multigraph_feedlist = {};
     
