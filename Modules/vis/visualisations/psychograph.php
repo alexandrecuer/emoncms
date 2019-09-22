@@ -11,10 +11,10 @@
 
 <?php
     global $path;
-    $embed = (int)(get("embed"));
-    $mid = (int)(get("mid"));
-    $hrtohabs = (int)(get("hrtohabs"));
-    $givoni = (int)(get("givoni"));
+    //$embed = (int)(get("embed"));
+    //$mid = (int)(get("mid"));
+    //$hrtohabs = (int)(get("hrtohabs"));
+    //$givoni = (int)(get("givoni"));
 ?>
 <script>
 //console.log(path);
@@ -119,7 +119,16 @@ document.write(bstrap1);
     var embed = url_Params.get("embed");
     var hrtohabs = url_Params.get("hrtohabs");
     var givoni = url_Params.get("givoni");
-    var apikey = "<?php echo $apikey; ?>";
+    //is apikey necessary ??
+    var apikey;
+    $.ajax({ 
+        url: path+"user/get.json",
+        async: true,
+        success(data)
+         {
+         apikey=data.apikey_read;
+         }
+    });
     var datetimepicker_previous = null;
     var multigraph_feedlist = {};
     
