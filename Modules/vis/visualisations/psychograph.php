@@ -111,13 +111,19 @@ document.write(bstrap1);
 </div>
 
 <script id="source" language="javascript" type="text/javascript">
-
-    var mid = <?php echo $mid; ?>;
-    var path = "<?php echo $path; ?>";
-    var embed = <?php echo $embed; ?>;
+    //console.log(window.location.search);
+    //console.log(urlParams);
+    const url_Params = new URLSearchParams(window.location.search);
+    var mid = url_Params.get("mid");
+    var embed = url_Params.get("embed");
+    var hrtohabs = url_Params.get("hrtohabs");
+    var givoni = url_Params.get("givoni");
+    //var mid = <?php echo $mid; ?>;
+    //var path = "<?php echo $path; ?>";
+    //var embed = <?php echo $embed; ?>;
     var apikey = "<?php echo $apikey; ?>";
-    var hrtohabs = <?php echo($hrtohabs); ?>;
-    var givoni = <?php echo($givoni); ?>;
+    //var hrtohabs = <?php echo($hrtohabs); ?>;
+    //var givoni = <?php echo($givoni); ?>;
     var datetimepicker_previous = null;
     var multigraph_feedlist = {};
     
