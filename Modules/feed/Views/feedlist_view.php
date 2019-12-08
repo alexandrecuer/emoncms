@@ -1,6 +1,5 @@
 <?php
-    global $path, $feedviewpath;
-    if (!isset($feedviewpath)) $feedviewpath = "vis/auto?feedid=";
+    global $path, $settings;
 ?>
 
 <script type="text/javascript" src="<?php echo $path; ?>Modules/user/user.js"></script>
@@ -196,19 +195,19 @@ body{padding:0!important}
         <h3 id="feedEditModalLabel"><?php echo _('Edit feed'); ?></h3>
     </div>
     <div class="modal-body">
-        <p>Feed node:<br>
+        <p><?php echo _('Feed node:'); ?><br>
         <div class="autocomplete">
             <input id="feed-node" type="text" style="margin-bottom:0">
         </div>
         </p>
 
-        <p>Feed name:<br>
+        <p><?php echo _('Feed name:'); ?><br>
         <input id="feed-name" type="text"></p>
 
-        <p>Make feed public: 
+        <p><?php echo _('Make feed public:'); ?>
         <input id="feed-public" type="checkbox"></p>
 
-        <p>Feed Unit</p>
+        <p><?php echo _('Feed Unit'); ?></p>
         <div class="input-prepend">
         <select id="feed_unit_dropdown" style="width:auto">
             <option value=""></option>
@@ -221,14 +220,14 @@ body{padding:0!important}
             }
         }
         ?>
-            <option value="_other">Other</option>
+            <option value="_other"><?php echo _('Other'); ?></option>
         </select>
         <input type="text" id="feed_unit_dropdown_other" style="width:100px"/>
         </div>
     </div>
     <div class="modal-footer">
         <div id="feed-edit-save-message" style="position:absolute"></div>
-        <button class="btn" data-dismiss="modal" aria-hidden="true"><?php echo _('Cancel'); ?></button>
+        <button class="btn" data-dismiss="modal" aria-hidden="true"><?php echo _('Close'); ?></button>
         <button id="feed-edit-save" class="btn btn-primary"><?php echo _('Save'); ?></button>
     </div>
 </div>
@@ -389,8 +388,7 @@ body{padding:0!important}
 <!------------------------------------------------------------------------------------------------------------------------------------------------- -->
 <script>
 
-var path = "<?php echo $path; ?>";
-var feedviewpath = "<?php echo $feedviewpath; ?>";
+var feedviewpath = "<?php echo $settings['interface']['feedviewpath']; ?>";
 
 var feeds = {};
 var nodes = {};
@@ -1406,7 +1404,7 @@ $("#export").click(function()
     if (export_start>=export_end) {alert("<?php echo _('Start date must be further back in time than end date.'); ?>"); return false; }
     if (export_interval=="") {alert("<?php echo _('Please select interval to download.'); ?>"); return false; }
 
-    var downloadlimit = <?php global $feed_settings; echo $feed_settings['csvdownloadlimit_mb']; ?>;
+    var downloadlimit = <?php echo $settings['feed']['csv_downloadlimit_mb']; ?>;
     var downloadsize = calculate_download_size(ids.length);
     
     if (ids.length>1) {
@@ -1435,7 +1433,7 @@ function calculate_download_size(feedcount){
         downloadsize = ((export_end - export_start) / export_interval) * (export_timeformat_size + export_data_size) * feedcount; 
     }
     $("#downloadsize").html((downloadsize / 1024 / 1024).toFixed(2));
-    var downloadlimit = <?php global $feed_settings; echo $feed_settings['csvdownloadlimit_mb']; ?>;
+    var downloadlimit = <?php echo $settings['feed']['csv_downloadlimit_mb']; ?>;
     $("#downloadsizeplaceholder").css('color', (downloadsize == 0 || downloadsize > (downloadlimit*1048576) ? 'red' : ''));
     
     return downloadsize;
