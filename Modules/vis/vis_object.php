@@ -141,6 +141,14 @@
             array('fill',dgettext('vis_messages','fill'),7,1),
             array('depth',dgettext('vis_messages','depth'),7,3),
             array('npoints',dgettext('vis_messages','data points'),7,800)
-        ))
-        // --------------------------------------------------------------------------------     
+        )),
+        
+        // --------------------------------------------------------------------------------
+        // Themis specific
+        // --------------------------------------------------------------------------------
+        'psychograph' => array ('label'=>dgettext('vis_messages','Psychometric Diagram'), 'action'=>'psychograph', 'options'=>array(
+            array('mid',dgettext('vis_messages','mid'),8),
+            array('hrtohabs',dgettext('vis_messages','% to abso.'),4),
+            array('givoni',dgettext('vis_messages','givoni style?'),4)
+        ))   
     );
