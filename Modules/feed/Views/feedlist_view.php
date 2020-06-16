@@ -95,7 +95,7 @@ body{padding:0!important}
 #feeds-to-delete { font-style:italic; }
 
 #deleteFeedModalSelectedItems{
-    postion:absolute;
+    position:absolute;
     overflow:hidden;
     text-align:left;
     background: #f5f5f5;
@@ -398,12 +398,17 @@ var nodes_display = docCookies.hasItem(local_cache_key) ? JSON.parse(docCookies.
 var feed_engines = ['MYSQL','TIMESTORE','PHPTIMESERIES','GRAPHITE','PHPTIMESTORE','PHPFINA','PHPFIWA','VIRTUAL','MEMORY','REDISBUFFER','CASSANDRA'];
 
 // auto refresh
-update();
-setInterval(update,5000);
+update_feed_list();
+setInterval(update_feed_list,5000);
 
 var firstLoad = true;
-function update() {
+function update_feed_list() {
     $.ajax({ url: path+"feed/list.json", dataType: 'json', async: true, success: function(data) {
+    
+        if (data.message!=undefined && data.message=="Username or password empty") {
+            window.location.href = "/";
+            return false;
+        }
     
         // Show/hide no feeds alert
         $('#feed-loader').hide();
@@ -540,7 +545,7 @@ function update() {
         autowidth($container) // set each column group to the same width
         } // end of for loop
     }); // end of ajax callback
-}// end of update() function
+}// end of update_feed_list() function
 
 // stop checkbox form opening graph view
 $("#table").on("click",".tbody .select",function(e) {
@@ -610,8 +615,6 @@ function nodeIntervalClass (feeds) {
     if (nodeMissed > 2 && nodeMissed < 9) result.push('status-warning');
     if (nodeMissed > 8) result.push('status-danger');
     return result.join(' ');
-
-    return result;
 }
 
 
@@ -713,7 +716,7 @@ $("#feed-edit-save").click(function() {
                     $('#feed-edit-save-message').text(response.message).fadeIn();
                 } else {
                     // ok
-                    update();
+                    update_feed_list();
                     $('#feedEditModal').modal('hide');
                     $('#feed-edit-save-message').text('').hide();
                 }
@@ -814,7 +817,7 @@ function showSelectedFeeds(feed_inputs) {
     for(s in selected) {
         titles[s] = selected[s].tag+":"+selected[s].name;
         // virtual feed processes
-        if ( selected[s].hasOwnProperty('processList') && selected[s].processList.length > 0 ) {
+        if ( selected[s].hasOwnProperty('processList') && selected[s].processList && selected[s].processList.length > 0 ) {
             linked.push(selected[s]);
             let virtualProcesses = processlist_ui.decode(selected[s].processList);
             for(p in virtualProcesses) {
@@ -1109,8 +1112,8 @@ function enableTrim(start_time){
                         }
                     }
                     $("#feedDelete-loader").stop().fadeOut();
-                    update();
-                    updaterStart(update, 5000);
+                    update_feed_list();
+                    updaterStart(update_feed_list, 5000);
                 }
             }
         });
@@ -1214,8 +1217,8 @@ function enableClear(){
                     }
                 }
                 $("#feedDelete-loader").stop().fadeOut();
-                update();
-                updaterStart(update, 5000);
+                update_feed_list();
+                updaterStart(update_feed_list, 5000);
             }
         });
 }
@@ -1239,8 +1242,8 @@ $("#feedDelete-confirm").click(function(){
         }
         
         setTimeout(function() {
-            update();
-            updaterStart(update, 5000);
+            update_feed_list();
+            updaterStart(update_feed_list, 5000);
             $('#feedDeleteModal').modal('hide');
             feed_selection();
         }, 5000);
@@ -1248,7 +1251,7 @@ $("#feedDelete-confirm").click(function(){
 });
 
 $("#refreshfeedsize").click(function(){
-    $.ajax({ url: path+"feed/updatesize.json", async: true, success: function(data){ update(); alert('<?php echo addslashes(_("Total size of used space for feeds:")); ?>' + list_format_size(data)); } });
+    $.ajax({ url: path+"feed/updatesize.json", async: true, success: function(data){ update_feed_list(); alert('<?php echo addslashes(_("Total size of used space for feeds:")); ?>' + list_format_size(data)); } });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -1307,7 +1310,7 @@ $("#newfeed-save").click(function (){
         alert('ERROR: Feed could not be created. '+result.message);
         return false;
     } else {
-        update(); 
+        update_feed_list(); 
         $('#newFeedNameModal').modal('hide');
     }
 });

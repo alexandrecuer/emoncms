@@ -58,24 +58,29 @@
         die;
     }
     
-    $mysqli = @new mysqli(
-        $settings["sql"]["server"],
-        $settings["sql"]["username"],
-        $settings["sql"]["password"],
-        $settings["sql"]["database"],
-        $settings["sql"]["port"]
-    );
-    
-    if ( $mysqli->connect_error ) {
-        echo "Can't connect to database, please verify credentials/configuration in settings.php<br />";
-        if ( $display_errors ) {
-            echo "Error message: <b>" . $mysqli->connect_error . "</b>";
+    $retry = 0;
+    $mysqli_connected = false;
+    while(!$mysqli_connected) {
+        // Try to connect to mysql
+        $mysqli = @new mysqli(
+            $settings["sql"]["server"],
+            $settings["sql"]["username"],
+            $settings["sql"]["password"],
+            $settings["sql"]["database"],
+            $settings["sql"]["port"]
+        );
+        
+        if ($mysqli->connect_error) { 
+            $log->error("Cannot connect to MYSQL database:". $mysqli->connect_error);  
+            $retry ++;
+            if ($retry>3) die;
+            sleep(5.0);
+        } else {
+            $mysqli_connected = true;
+            break;
         }
-        die();
     }
-
-    if ($mysqli->connect_error) { $log->error("Cannot connect to MYSQL database:". $mysqli->connect_error);  die('Check log\n'); }
-
+    
     // Enable for testing
     // $mysqli->query("SET interactive_timeout=60;");
     // $mysqli->query("SET wait_timeout=60;");
@@ -258,6 +263,7 @@
                     if (is_numeric($inputtime)){
                         $log->info("Valid time in seconds used ".$inputtime);
                         $time = (int) $inputtime;
+                        unset($jsondata["time"]);
                     } elseif (is_string($inputtime)){
                         if (($timestamp = strtotime($inputtime)) === false) {
                             //If time string is not valid, use system time.
@@ -289,44 +295,49 @@
             
             $inputs = array();
             
+            // 1. Filter out basetopic
+            $topic = str_replace($settings['mqtt']['basetopic']."/","",$topic);
+            // 2. Split by /
             $route = explode("/",$topic);
-            $basetopic = explode("/",$settings['mqtt']['basetopic']);
+            $route_len = count($route);
             
-            /*Iterate over base topic to determine correct sub-topic*/
-            $st = -1;
-            foreach ($basetopic as $subtopic) {
-                if(isset($route[$st+1])) {
-                    if($basetopic[$st+1] == $route[$st+1]) {
-                        $st = $st + 1;
-                    } else {
-                        break;
-                    }
-                } else {
-                    $log->error("MQTT base topic is longer than input topics! Will not produce any inputs! Base topic is ".$mqtt_server['basetopic'].". Topic is ".$topic.".");
-                }
-            }
-            if ($st >= 0) {
-                if (isset($route[$st+1])) {
-                    $nodeid = $route[$st+1];
-                    // Filter nodeid, pre input create, to avoid duplicate inputs
-                    $nodeid = preg_replace('/[^\p{N}\p{L}_\s\-.]/u','',$nodeid);
-                    
-                    $dbinputs = $input->get_inputs($userid);
+            if ($route_len>=1) {
+            
+                // Userid is first entry
+                // if (is_numeric($route[0])) $userid = (int) $route[0];
+                // Node id is second entry
+                $nodeid = $route[0];
+                // Filter nodeid, pre input create, to avoid duplicate inputs
+                $nodeid = preg_replace('/[^\p{N}\p{L}_\s\-.]/u','',$nodeid);
+                
+                $dbinputs = $input->get_inputs($userid);
 
-                    if ($jsoninput) {
-                        foreach ($jsondata as $key=>$value) {
-                            $inputs[] = array("userid"=>$userid, "time"=>$time, "nodeid"=>$nodeid, "name"=>$key, "value"=>$value);
-                        }
-                    } else if (isset($route[$st+2])) {
-                        $inputs[] = array("userid"=>$userid, "time"=>$time, "nodeid"=>$nodeid, "name"=>$route[$st+2], "value"=>$value);
+                if ($jsoninput) {
+                    $input_name = "";
+                    if ($route_len>=2) {
+                    // Input name is all the remaining parts connected together with _ and
+                    // added to front of input name.
+                        $input_name_parts = array();
+                        for ($i=1; $i<$route_len; $i++) $input_name_parts[] = $route[$i];
+                        $input_name = implode("_",$input_name_parts)."_";
                     }
-                    else
-                    {
-                        $values = explode(",",$value);
-                        $name = 0;
-                        foreach ($values as $value) {
-                            $inputs[] = array("userid"=>$userid, "time"=>$time, "nodeid"=>$nodeid, "name"=>$name++, "value"=>$value);
-                        }
+                    foreach ($jsondata as $key=>$value) {
+                        $inputs[] = array("userid"=>$userid, "time"=>$time, "nodeid"=>$nodeid, "name"=>$input_name.$key, "value"=>$value);
+                    }
+                } else if ($route_len>=2) {
+                    // Input name is all the remaining parts connected together
+                    $input_name_parts = array();
+                    for ($i=1; $i<$route_len; $i++) $input_name_parts[] = $route[$i];
+                    $input_name = implode("_",$input_name_parts);
+                
+                    $inputs[] = array("userid"=>$userid, "time"=>$time, "nodeid"=>$nodeid, "name"=>$input_name, "value"=>$value);
+                }
+                else
+                {
+                    $values = explode(",",$value);
+                    $name = 0;
+                    foreach ($values as $value) {
+                        $inputs[] = array("userid"=>$userid, "time"=>$time, "nodeid"=>$nodeid, "name"=>$name++, "value"=>$value);
                     }
                 }
             } else {

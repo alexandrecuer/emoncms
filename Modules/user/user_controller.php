@@ -36,7 +36,7 @@ function user_controller()
             $msg = empty($route_query['msg']) ? get('msg') : $route_query['msg'];
             $ref = empty($route_query['ref']) ? get('ref') : $route_query['ref'];
             $message = filter_var(urldecode($msg), FILTER_SANITIZE_STRING);
-            $referrer = filter_var(urldecode(base64_decode($ref)), FILTER_SANITIZE_URL);
+            $referrer = htmlentities(filter_var(urldecode(base64_decode($ref)), FILTER_SANITIZE_URL));
             
             // load login template with the above parameters
             $result = view("Modules/user/login_block.php", array(
@@ -53,7 +53,7 @@ function user_controller()
             // decode url parameters
             $next = $path;
             $message = filter_var(urldecode(get('msg')), FILTER_SANITIZE_STRING);
-            $referrer = filter_var(urldecode(base64_decode(get('ref'))), FILTER_SANITIZE_URL);
+            $referrer = htmlentities(filter_var(urldecode(base64_decode(get('ref'))), FILTER_SANITIZE_URL));
             
             // encode url parameters to pass through to login page
             $msg = urlencode($message);
@@ -85,7 +85,7 @@ function user_controller()
     {
         // Core session
         if ($route->action == 'login' && !$session['read']) $result = $user->login(post('username'),post('password'),post('rememberme'),post('referrer'));
-        if ($route->action == 'register' && $allowusersregister) $result = $user->register(post('username'),post('password'),post('email'));
+        if ($route->action == 'register' && $allowusersregister) $result = $user->register(post('username'),post('password'),post('email'),post('timezone'));
         if ($route->action == 'logout' && $session['read']) {$user->logout();call_hook('on_logout',[]);}
         
         if ($route->action == 'resend-verify' && $settings["interface"]["email_verification"]) {
