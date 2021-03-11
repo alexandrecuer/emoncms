@@ -21,7 +21,7 @@ global $path, $settings;
     margin: 0 auto;
     padding: 10px;
   }
-  
+
 </style>
 <script type="text/javascript" src="<?php echo $path; ?>Modules/user/user.js?v=<?php echo $v ?>"></script>
 <br>
@@ -31,8 +31,8 @@ global $path, $settings;
 
 <div class="main">
   <div class="well">
-    <img src="<?php echo $path; ?>Theme/<?php echo $settings["interface"]["theme"]; ?>/logo_login.png" alt="Login" width="256" height="46" />
-        
+    <img src="<?php echo $path; ?>Theme/<?php echo $settings["interface"]["theme"]; ?>/themis.svg" alt="Login" width="256" height="84" />
+
     <div class="login-container">
         <div id="login-form">
             <div id="loginblock">
@@ -205,11 +205,11 @@ function login(){
     if (result.success==undefined) {
         $("#loginmessage").html("<div class='alert alert-error'>"+result+"</div>");
         return false;
-    
+
     } else {
         if (result.success)
         {
-            var href = result.hasOwnProperty('startingpage') ? result.startingpage: path; 
+            var href = result.hasOwnProperty('startingpage') ? result.startingpage: path;
             window.location.href = href;
             return true;
         }
@@ -249,7 +249,7 @@ function register(){
         if (result.success==undefined) {
             $("#loginmessage").html("<div class='alert alert-error'>"+result+"</div>");
             return false;
-        
+
         } else {
             if (result.success) {
                 if (result.verifyemail) {
@@ -261,7 +261,7 @@ function register(){
                 } else {
                     login();
                 }
-                
+
             } else {
                 $("#loginmessage").html("<div class='alert alert-error'>"+result.message+"</div>");
             }
@@ -272,7 +272,7 @@ function register(){
 function resend_verify()
 {
     var username = $("input[name='username']").val();
-    
+
     $.ajax({
       url: path+"user/resend-verify.json",
       data: "&username="+encodeURIComponent(username),
@@ -283,7 +283,7 @@ function resend_verify()
          } else {
              $("#loginmessage").html("<div class='alert alert-error'>"+result.message+"</div>");
          }
-      } 
+      }
     });
 }
 
