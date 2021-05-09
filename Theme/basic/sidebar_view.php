@@ -135,6 +135,8 @@ foreach($second_level_menus as $menu_key => $second_level_menu) {
     // activate active menu item or default menu
     $active_css = is_current_group($second_level_menu) ||  ($menu_key == $default_nav && $empty_sidebar) ? ' active': '';
     $_close = dgettext('theme_messages','Close');
+    
+    $sidetitle = $menu_key=="emoncms"?"Open Building Management":$menu_key;
 
 // logic ends here (should be in a controller or model?? eg. sidebar_controller.php)
 // -------------------------------------------------------
@@ -142,7 +144,7 @@ foreach($second_level_menus as $menu_key => $second_level_menu) {
     echo <<<SIDEBARSTART
     <div id="sidebar_{$menu_key}" class="sidebar-inner{$active_css}">
         <a href="#" class="btn btn-large btn-link pull-right btn-dark btn-inverse text-light d-md-none p-3 pb-2" data-toggle="slide-collapse" data-target="#sidebar" title="{$_close}">&times;</a>
-        <h4 class="sidebar-title">{$menu_key}</h4>
+        <h4 class="sidebar-title">{$sidetitle}</h4>
 SIDEBARSTART;
 
     if(!empty($markup)) {
