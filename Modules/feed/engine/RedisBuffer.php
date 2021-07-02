@@ -34,7 +34,13 @@ class RedisBuffer implements engine_methods
     public function delete($feedid)
     {
         $this->redis->srem("feed:bufferactive",$feedid); // remove from feedlist
-        $this->redis->zRemRangeByRank('feed:$feedid:buffer', 0, -1); // remove buffer
+        $bkey="feed:$feedid:buffer";
+        // remove buffer
+        if ($this->redis->type($bkey)==1){
+            $this->redis->del($bkey);
+        } else {
+            $this->redis->zRemRangeByRank($bkey, 0, -1);
+        }
     }
 
     public function get_meta($feedid)
@@ -150,6 +156,38 @@ class RedisBuffer implements engine_methods
                 }
             }
             $data = array_values($data); // re-index array
+        }
+        return $data;
+    }
+	
+	/**
+     * Return a data batch
+     * before injection into redis, the batch has been flattened and converted to binary
+     * bytes 0 to 3 = number of lines as a 32 bit unsigned long, big endian byte order
+     * bytes 4 to 7 = number of columns as a 32 bit unsigned long, big endian byte order
+     * bytes 8 to the end = the flattened batch stored as doubles
+     * @param integer $feedid : The id of the feed
+    */
+    public function get_batch($feedid)
+    {
+        $test = $this->redis->get("feed:$feedid:buffer");
+        # from the PHP doc
+        # N - unsigned long (always 32 bit, big endian byte order)
+        $nblines = unpack('N', $test)[1];
+        $nbcols = unpack('N', $test, 4)[1];
+        $this->log->info("batch array has got $nblines lines & $nbcols cols");
+        # d - double (machine dependent size and representation)
+        $tab = unpack('d*', $test,8);
+        $len = count($tab);
+        $data = array();
+        if ($nblines > 0) {
+            $j=0;
+            while ($j<$len) {
+                $row=array_slice($tab,$j,$nbcols);
+                $time=$row[0]*1000;
+                $data[]=array($time,$row[2]);
+                $j+=4;
+            }
         }
         return $data;
     }

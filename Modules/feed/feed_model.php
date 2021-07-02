@@ -620,6 +620,20 @@ class Feed
 
         return $data;
     }
+	
+	/*
+    operate data batches injected to Redis buffer
+    */
+    public function get_batch($feedid)
+    {
+        $feedid = (int) $feedid;
+        $engine = $this->get_engine($feedid);
+        if ($engine == Engine::REDISBUFFER) {
+            $this->log->info("get_batch() $feedid");
+            $bufferdata = $this->EngineClass(Engine::REDISBUFFER)->get_batch($feedid);
+            return $bufferdata;
+        } else return "get_batch only supported by redisbuffer engine 9";
+    }
     
     public function get_data_DMY($feedid,$start,$end,$mode)
     {
