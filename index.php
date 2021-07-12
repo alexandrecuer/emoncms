@@ -19,6 +19,8 @@ require "core.php";
 require "route.php";
 require "param.php";
 require "locale.php";
+$obm = "Modules/OBMmonitor/shared.php";
+if (file_exists($obm)) include $obm;
 
 $emoncms_version = ($settings['feed']['redisbuffer']['enabled'] ? "low-write " : "") . version();
 
