@@ -24,7 +24,7 @@ if (file_exists($obm)) include $obm;
 
 $emoncms_version = ($settings['feed']['redisbuffer']['enabled'] ? "low-write " : "") . version();
 
-$path = get_application_path();
+$path = get_application_path($settings["domain"]);
 $sidebarFixed = true;
 
 require "Lib/EmonLogger.php";
