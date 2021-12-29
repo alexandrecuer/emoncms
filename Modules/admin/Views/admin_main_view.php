@@ -55,9 +55,13 @@ listItem;
     }
     
 ?>
-<link rel="stylesheet" href="<?php echo $path?>Modules/admin/static/admin_styles.css?v=<?php echo $v ?>">
+<link rel="stylesheet" href="<?php echo $path?>Modules/admin/static/admin_styles.css?v=1">
 
-<div class="admin-container" style="margin-top:10px">
+<div class="admin-container">
+
+<?php if (PHP_VERSION_ID<70300) { ?>
+<div class="alert alert-error" style="text-align:left"><b>Important:</b> PHP version <?php echo phpversion(); ?> detected. Please update to version 7.3 or newer to keep your installation secure.<br>This emoncms installation is running in compatibility mode and does not include all of the latest security improvements.<br>See guide on updating php on the emoncms github: <a href="https://github.com/emoncms/emoncms/issues/1726">Updating PHP.</a></div>
+<?php } ?>
 
     <?php 
     // SERVER INFO
@@ -78,14 +82,21 @@ listItem;
         <dl class="row">
             <?php foreach ($services as $key=>$value) { ?>
                 <dt class="col-sm-2 col-4 text-truncate"><span class="badge-<?php echo $value['cssClass']; ?> badge"></span> <?php echo $key; ?></dt>
-                <dd class="col-sm-10 col-8 border-box px-1"><strong><?php echo $value['state']; ?></strong> <?php echo $value['text']; ?>
-                  <div class="btn-group" role="group" style="float:right">
-                  <?php if ($value['state']!="Active") { ?><button class="btn btn-small btn-success service-action" service_action="start" service_key="<?php echo $key; ?>">Start</button><?php } ?>
-                  <?php if ($value['state']=="Active") { ?><button class="btn btn-small btn-danger service-action" service_action="stop" service_key="<?php echo $key; ?>">Stop</button><?php } ?>
-                  <button class="btn btn-small btn-warning service-action" service_action="restart" service_key="<?php echo $key; ?>">Restart</button>
-                  <button class="btn btn-small btn-inverse service-action" service_action="disable" service_key="<?php echo $key; ?>">Disable</button>
-                  <button class="btn btn-small btn-primary service-action" service_action="enable" service_key="<?php echo $key; ?>">Enable</button>
-                  </div>
+                <dd class="col-sm-10 col-8 border-box px-1">
+                  <?php if ($value['loadstate']=="Loaded") { ?>
+                      <strong><?php echo $value['state']; ?></strong> <?php echo $value['text']; ?>
+                      <div class="btn-group" role="group" style="float:right">
+                      <?php if ($value['state']!="Active") { ?><button class="btn btn-small btn-success service-action" service_action="start" service_key="<?php echo $key; ?>">Start</button><?php } ?>
+                      <?php if ($value['state']=="Active") { ?>
+                        <button class="btn btn-small btn-danger service-action" service_action="stop" service_key="<?php echo $key; ?>">Stop</button>
+                        <button class="btn btn-small btn-warning service-action" service_action="restart" service_key="<?php echo $key; ?>">Restart</button>
+                      <?php } ?>
+                      <button class="btn btn-small btn-inverse service-action" service_action="disable" service_key="<?php echo $key; ?>">Disable</button>
+                      <button class="btn btn-small btn-primary service-action" service_action="enable" service_key="<?php echo $key; ?>">Enable</button>
+                      </div>
+                  <?php } else { ?>
+                      <?php echo $value['text']; ?>
+                  <?php } ?>
                 </dd>
             <?php } ?>
         </dl>
@@ -107,6 +118,8 @@ listItem;
 
         <h4 class="text-info text-uppercase border-top pt-2 mt-0 px-1"><?php echo _('Server'); ?></h4>
         <dl class="row">
+            <?php if ($system['machine']) echo row(_('Machine'),  $system['machine']); ?>
+            <?php if ($system['cpu_info']) echo row(_('CPU'), $system['cpu_info']); ?>
             <?php echo row(_('OS'), $system['system'] . ' ' . $system['kernel']); ?>
             <?php echo row(_('Host'), $system['host'] . ' | ' . $system['hostbyaddress'] . ' | (' . $system['ip'] . ')'); ?>
             <?php echo row(_('Date'), $system['date']); ?>
@@ -131,29 +144,27 @@ listItem;
             ?>
             
         </dl>
-
-        <div class="input-prepend" style="float:right; padding-top:5px">
-            <span class="add-on"><?php echo _('Write Load Period'); ?></span>
-            <button id="resetwriteload" class="btn btn-info"><?php echo _('Reset'); ?></button>
-        </div>
         <h4 class="text-info text-uppercase border-top pt-2 mt-0 px-1"><?php echo _('Disk'); ?></h4>
-        <br>
-        
         <dl class="row">
             <?php 
+            if ($redis_enabled) { 
+                $reset_write_load_btn = sprintf('<button id="resetdiskstats" class="btn btn-info btn-small pull-right">%s</button>',_('Reset Disk Stats'));
+                echo row('', sprintf('<span id="add-on"></span>%s',$reset_write_load_btn),'d-flex','d-flex align-items-center justify-content-between');
+            }
             foreach($disk_info as $mount_info) {
                 echo row($mount_info['mountpoint'], 
                     bar($mount_info['table'], sprintf(_('Used: %s%%'), $mount_info['percent']), array(
                         'Total'=>$mount_info['total'],
                         'Used'=>$mount_info['used'],
                         'Free'=>$mount_info['free'],
-                        'Write Load'=>$mount_info['writeload']
+                        'Read Load'=>$mount_info['readload'],
+                        'Write Load'=>$mount_info['writeload'],
+                        'Load Time'=>$mount_info['statsloadtime']
                     ))
                 );
             }
             ?>
         </dl>
-
 
         <h4 class="text-info text-uppercase border-top pt-2 mt-0 px-1"><?php echo _('HTTP'); ?></h4>
         <dl class="row">
@@ -188,7 +199,6 @@ listItem;
             echo row(sprintf('<span class="align-self-center">%s</span>',_('Size')), sprintf('<span id="redisused">%s %s</span>%s',$redis_keys,$redis_size,$redis_flush_btn),'d-flex','d-flex align-items-center justify-content-between');
             ?>
             <?php echo row(_('Uptime'), sprintf(_("%s days"), $redis_info['uptime_in_days'])); ?>
-            
         </dl>
         <?php endif; ?>
 
@@ -203,6 +213,7 @@ listItem;
         <h4 class="text-info text-uppercase border-top pt-2 mt-0 px-1"><?php echo _('PHP'); ?></h4>
         <dl class="row">
         <?php echo row(_('Version'), $system['php'] . ' (' . "Zend Version" . ' ' . $system['zend'] . ')'); ?>
+        <?php echo row(_('Run user'), _('User') . ": " . $system['run_user'] . " " . _('Group') . ": " .  $system['run_group'] . " " . _('Script Owner') . ": " . $system['script_owner'] ); ?>
         <?php echo row(_('Modules'), "<ul id=\"php-modules\"><li>".str_replace("v".$system['php'],"", implode('</li><li>', $php_modules)).'</li></ul>', '', 'overflow-hidden'); ?>
         </dl>
 
@@ -498,8 +509,8 @@ $(window).resize(function() {
 function getBufferSize() {
   $.ajax({ url: path+"feed/buffersize.json", async: true, dataType: "json", success: function(result)
     {
-      var data = JSON.parse(result);
-      $("#bufferused").html( data + " feed points pending write");
+      if (result.reauth == true) { window.location.reload(true); }
+      $("#bufferused").html( result + " feed points pending write");
     }
   });
 }
@@ -507,18 +518,18 @@ function getBufferSize() {
 
 
 $("#redisflush").click(function() {
-  $.ajax({ url: path+"admin/redisflush", async: true, dataType: "text", success: function(result)
+  $.ajax({ url: path+"admin/redisflush", async: true, dataType: "json", success: function(result)
     {
-      var data = JSON.parse(result);
-      $("#redisused").html(data.dbsize+" keys ("+data.used+")");
+      if (result.reauth == true) { window.location.reload(true); }
+      $("#redisused").html(result.dbsize+" keys ("+result.used+")");
     }
   });
 });
 
-$("#resetwriteload").click(function() {
-  $.ajax({ url: path+"admin/resetwriteload", async: true, dataType: "text", success: function(result)
+$("#resetdiskstats").click(function() {
+  $.ajax({ url: path+"admin/resetdiskstats", async: true, dataType: "json", success: function(result)
     {
-      location.reload(); 
+      window.location.reload();
     }
   });
 });
@@ -559,7 +570,8 @@ $(".service-action").click(function() {
     var action = $(this).attr("service_action");
     console.log(action+" "+name)
     
-    $.ajax({ url: path+"admin/service/"+action+"?name="+name, async: true, dataType: "text", success: function(result) {
+    $.ajax({ url: path+"admin/service/"+action+"?name="+name, async: true, dataType: "json", success: function(result) {
+        if (result.reauth == true) { window.location.reload(true); }
         setTimeout(function() {
             location.reload();
         },1000);

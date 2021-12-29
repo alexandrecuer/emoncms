@@ -1,6 +1,5 @@
-<link rel="stylesheet" href="<?php echo $path?>Modules/admin/static/admin_styles.css?v=<?php echo $v ?>">
-
-<div class="admin-container" style="margin-top:10px">
+<link rel="stylesheet" href="<?php echo $path?>Modules/admin/static/admin_styles.css?v=1">
+<div class="admin-container">
 
     <?php
     // LOG FILE VIEWER
@@ -29,34 +28,39 @@
         </div>
     </section>
     
+    <!--
     <section>
-        <pre id="logreply-bound" class="log" style="height:520px"><div id="logreply"></div></pre>
-        <?php if(isset($path_to_config) && is_writable($path_to_config)) { ?>
-        <div id="log-level" class="dropup btn-group">
-            <a class="btn btn-small dropdown-toggle btn-inverse text-uppercase" data-toggle="dropdown" href="#" title="<?php echo _('Change the logging level') ?>">
-            <span class="log-level-name"><?php echo sprintf('Log Level: %s', $log_level_label) ?></span>
-            <span class="caret"></span>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-right">
-                <?php foreach ($log_levels as $key=>$value) {
-                    $active = $key === $log_level ? ' active':'';
-                    printf('<li><a href="#" data-key="%s" class="btn %s">%s</a></li>', $key, $active, $value);
-                }?>
-
-            </ul>
+        <pre id="logreply-bound" class="log" style="min-height:320px; height:calc(100vh - 280px);"><div id="logreply"></div></pre>
+        <div class="text-right"> 
+            <div class="btn-group">
+                <button class="btn btn-inverse mb-1">
+                    <?php echo sprintf('Log Level: %s', $log_level_label) ?>
+                </button>
+            </div>
         </div>
-        <?php } else { ?>
-            <span id="log-level" class="btn-small dropdown-toggle btn-inverse text-uppercase">
-                <?php echo sprintf('Log Level: %s', $log_level_label) ?>
-            </span>
-        <?php } ?>
+    </section>
+    bellow is original code that overlaps footer, comment here is my proposal using correct bootstrap syntax
+    -->
+    
+    <section>
+        <pre id="logreply-bound" class="log" style="min-height:320px; height:calc(100vh - 220px); display:none;"><div id="logreply"></div></pre>
+        <span id="log-level" class="btn-small dropdown-toggle btn-inverse text-uppercase" title="Can be changed in settings file" style="cursor:pointer">
+            <?php echo sprintf('Log Level: %s', $log_level_label) ?>
+        </span>
     </section>
     
-    <?php } ?>
+    <?php 
+        } else {
+            echo _('Logging is disabled in settings.');
+        }
+    ?>
+    
     
 </div>
 <div id="snackbar" class=""></div>
 <script>
+
+$("#logreply-bound").slideDown();
 
 var logFileDetails;
 $("#copylogfile").on('click', function(event) {
@@ -82,12 +86,21 @@ function refresherStart(func, interval){
 
 // push value to emoncms logfile viewer
 function refresh_log(result){
-
-    if (result=="Admin re-authentication required") {
-        window.location = "/";
+    var isjson = true;
+    try {
+        data = JSON.parse(result);
+        if (data.reauth == true) { window.location.reload(true); }
+        if (data.success != undefined)  { 
+            clearInterval(emoncms_log_interval);
+            output_logfile("<text style='color:red;'>"+ data.message+"</text>", $("#logreply"));
+        }
+    } catch (e) {
+        isjson = false;
+    }
+    if (isjson == false )     {
+        output_logfile(result, $("#logreply"));
     }
 
-    output_logfile(result, $("#logreply"));
 }
 // display content in container and scroll to the bottom
 function output_logfile(result, $container){
@@ -108,7 +121,7 @@ $("#getlog").click(function() {
     if ($this.is('.active')) {
         clearInterval(emoncms_log_interval);
     } else {
-        emoncms_log_interval = refresherStart(getLog, 500); 
+        emoncms_log_interval = refresherStart(getLog, 1000); 
     }
 });
 function copyTextToClipboard(text, message) {

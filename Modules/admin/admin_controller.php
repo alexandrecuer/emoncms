@@ -15,19 +15,14 @@ defined('EMONCMS_EXEC') or die('Restricted access');
 function admin_controller()
 {
     global $settings, $mysqli, $session, $route, $redis, $path, $log;
-
     
     if (!$session['write']) {
-        if (in_array($route->action,array('update-log','getlog','serialmonitor'))) {
-            $route->format = 'text';
-            return "Admin re-authentication required";
-        }
-        return array('content'=>'','message'=>'Admin re-authentication required'); 
+        return array('success'=>false, 'content'=>'', 'reauth'=>true, 'message'=>"Admin re-authentication required");
     }
+
+    require_once "Modules/admin/admin_model.php";
+    $admin = new Admin($mysqli, $redis, $settings);
     
-    $emoncms_logfile = $settings['log']['location']."/emoncms.log";
-    $update_logfile = $settings['log']['location']."/update.log";
-    $old_update_logfile = $settings['log']['location']."/emonpiupdate.log";    
     // --------------------------------------------------------------------------------------------
     // Allow for special admin session if updatelogin property is set to true in settings.php
     // Its important to use this with care and set updatelogin to false or remove from settings
@@ -48,7 +43,7 @@ function admin_controller()
         ));
 
         $error = !empty($updates[0]['operations']['error']) ? $updates[0]['operations']['error']: '';
-        return view("Modules/admin/mysql_update_view.php", array('applychanges'=>$applychanges, 'updates'=>$updates, 'error'=>$error));
+        return view("Modules/admin/Views/mysql_update_view.php", array('applychanges'=>$applychanges, 'updates'=>$updates, 'error'=>$error));
     }
     
     // --------------------------------------------------------------------------------------------
@@ -79,50 +74,43 @@ function admin_controller()
     // System information view
     if ($route->action == 'info') {
         $route->format = 'html';
-        require "Modules/admin/admin_model.php";
-        return view("Modules/admin/admin_main_view.php",Admin::full_system_information());
+        return view("Modules/admin/Views/admin_main_view.php", $admin->full_system_information());
     }
     
     // System update view
     if ($route->action == 'update') {
         $route->format = 'html';
-        require "Modules/admin/admin_model.php";
-        return view("Modules/admin/update_view.php", array(
-            'update_log_filename'=> $update_logfile,
-            'serial_ports'=>Admin::listSerialPorts(),
-            'firmware_available'=>Admin::firmware_available()
+        return view("Modules/admin/Views/update_view.php", array(
+            'update_log_filename'=> $admin->update_logfile(),
+            'serial_ports'=>$admin->listSerialPorts(),
+            'firmware_available'=>$admin->firmware_available()
         ));
     }
             
     // System components view
     if ($route->action == 'components') {
         $route->format = 'html';
-        require "Modules/admin/admin_model.php";
-        return view("Modules/admin/components_view.php", array("components"=>Admin::component_list()));
-    } 
+        return view("Modules/admin/Views/components_view.php", array(
+            "components"=>$admin->component_list()
+        ));
+    }
     
     // Firmware view
     if ($route->action == 'serial') {
         $route->format = 'html';
-        require "Modules/admin/admin_model.php";
-        return view("Modules/admin/firmware_view.php", array(
-            'serial_ports'=>Admin::listSerialPorts()
+        return view("Modules/admin/Views/serialmonitor_view.php", array(
+            'serial_ports'=>$admin->listSerialPorts()
         ));
     }
     
     // Emoncms log view
-    if ($route->action == 'emoncmslog') {
+    if ($route->action == 'log') {
         $route->format = 'html';
         
-        $log_levels = array(
-            1 =>'INFO',
-            2 =>'WARN', // default
-            3 =>'ERROR'
-        );  
-        
-        return view("Modules/admin/emoncms_log_view.php", array(
+        $log_levels = $log->levels();
+        return view("Modules/admin/Views/emoncms_log_view.php", array(
             'log_enabled'=>$settings['log']['enabled'],
-            'emoncms_logfile'=>$emoncms_logfile,
+            'emoncms_logfile'=>$admin->emoncms_logfile(),
             'log_levels' => $log_levels,
             'log_level'=>$settings['log']['level'],
             'log_level_label' => $log_levels[$settings['log']['level']]     
@@ -132,7 +120,7 @@ function admin_controller()
     // User list view
     if ($route->action == 'users') {
         $route->format = 'html';
-        return view("Modules/admin/userlist_view.php", array());
+        return view("Modules/admin/Views/userlist_view.php", array());
     }
     
     // ----------------------------------------------------------------------------------------
@@ -143,54 +131,47 @@ function admin_controller()
         $route->format = 'json';
         // Validate service name
         if (!isset($_GET['name'])) {
-            return "missing name parameter";
+            return array('success'=>false, 'message'=>"Missing name parameter");
         }
-        $name = $_GET['name'];
-        require "Modules/admin/admin_model.php";     
-        if (!in_array($name,Admin::get_services_list())) {
-            return "invalid service";
+        $name = $_GET['name'];    
+        if (!in_array($name,$admin->get_services_list())) {
+            return array('success'=>false, 'message'=>"Invalid service");
         }
         
-        if ($route->subaction == 'status') return Admin::getServiceStatus("$name.service");
-        if ($route->subaction == 'start') return Admin::setService("$name.service",'start');
-        if ($route->subaction == 'stop') return Admin::setService("$name.service",'stop');
-        if ($route->subaction == 'restart') return Admin::setService("$name.service",'restart');
-        if ($route->subaction == 'disable') return Admin::setService("$name.service",'disable');
-        if ($route->subaction == 'enable') return Admin::setService("$name.service",'enable');
-        return false;
+        if ($route->subaction == 'status') return $admin->getServiceStatus("$name.service");
+        if ($route->subaction == 'start') return $admin->setService("$name.service",'start');
+        if ($route->subaction == 'stop') return $admin->setService("$name.service",'stop');
+        if ($route->subaction == 'restart') return $admin->setService("$name.service",'restart');
+        if ($route->subaction == 'disable') return $admin->setService("$name.service",'disable');
+        if ($route->subaction == 'enable') return $admin->setService("$name.service",'enable');
+        return array('success'=>false, 'message'=>"Unknown subaction");
     }
     
     if ($route->action == 'shutdown') {
         $route->format = 'text';
         shell_exec('sudo shutdown -h now 2>&1');
-        return "system halt in progress";
+        return "System halt in progress";
     }
 
     if ($route->action == 'reboot') {
         $route->format = 'text';
         shell_exec('sudo shutdown -r now 2>&1');
-        return "system reboot in progress";
+        return "System reboot in progress";
     }
 
     if ($route->action == 'redisflush') {
         $route->format = 'json';
         if ($redis) {
             $redis->flushDB();
-            return array('used'=>$redis->info()['used_memory_human'], 'dbsize'=>$redis->dbSize());
+            return array('success'=>true, 'used'=>$redis->info()['used_memory_human'], 'dbsize'=>$redis->dbSize());
         } else {
-            return false;
+            return array('success'=>false, 'message'=>"Redis not enabled");
         }
     }
 
-    if ($route->action == 'resetwriteload') {
+    if ($route->action == 'resetdiskstats') {
         $route->format = 'json';
-        if ($redis) {
-            $redis->del("diskstats:mmcblk0p1");
-            $redis->del("diskstats:mmcblk0p2");
-            $redis->del("diskstats:mmcblk0p3");
-            $redis->del("diskstats:time");
-        }
-        return true;
+        return $admin->disk_stats_reset();
     }
 
     if ($route->action == 'fs') {
@@ -202,154 +183,140 @@ function admin_controller()
                 passthru('rpi-rw');
             }
         }
-        return false;
+        return array('success'=>false, 'message'=>"Missing argument");
     }
 
     // ----------------------------------------------------------------------------------------
     // System update
     // ----------------------------------------------------------------------------------------       
     if ($route->action == 'update-start') {
-        $route->format = "text";
-        if (!$redis) return "redis not running";
-        if (!isset($_POST['type'])) return "missing parameter: type";
-        if (!isset($_POST['serial_port'])) return "missing parameter: serial_port";
-        if (!isset($_POST['firmware_key'])) return "missing parameter: firmware_key";
+        $route->format = "json";
+        if (!isset($_POST['type'])) return array('success'=>false,'message'=>"missing parameter: type");
+        if (!isset($_POST['serial_port'])) return array('success'=>false, 'message'=>"missing parameter: serial_port");
+        if (!isset($_POST['firmware_key'])) return array('success'=>false, 'message'=>"missing parameter: firmware_key");
         
         $type = $_POST['type'];
-        if (!in_array($type,array("all","emoncms"))) return "Invalid update type";
+        if (!in_array($type,array("all","emoncms"))) return array('success'=>false, 'message'=>"Invalid update type");
         
-        $serial_port = $_POST['serial_port'];
-        require "Modules/admin/admin_model.php";     
-        if (!in_array($serial_port,Admin::listSerialPorts())) return "Invalid serial port";
+        $serial_port = $_POST['serial_port'];   
+        if (!in_array($serial_port,$admin->listSerialPorts())) return array('success'=>false, 'message'=>"Invalid serial port");
 
         $firmware_key = $_POST['firmware_key'];        
-        $firmware_available = Admin::firmware_available();
-        if (!isset($firmware_available->$firmware_key) && $firmware_key!="none") return "invalid firmware";
+        $firmware_available = $admin->firmware_available();
+        if (!isset($firmware_available->$firmware_key) && $firmware_key!="none") return array('success'=>false, 'message'=>"invalid firmware");
 
         if (file_exists($settings['openenergymonitor_dir']."/EmonScripts")) {
             $update_script = $settings['openenergymonitor_dir']."/EmonScripts/update/service-runner-update.sh";
         } else {
             $update_script = $settings['openenergymonitor_dir']."/emonpi/service-runner-update.sh";
-        }        
-        $redis->rpush("service-runner","$update_script $type $firmware_key $serial_port>$update_logfile");
-        return "service-runner trigger sent";
+        }
+        return $admin->runService($update_script, "$type $firmware_key $serial_port>".$admin->update_logfile());
     }
     
     if ($route->action == 'update-firmware') {
-        $route->format = "text";
-        if (!$redis) return "redis not running";
-        if (!isset($_POST['serial_port'])) return "missing parameter: serial_port";
-        if (!isset($_POST['firmware_key'])) return "missing parameter: firmware_key";
+        $route->format = "json";
+
+        if (!isset($_POST['serial_port'])) return array('success'=>false, 'message'=>"missing parameter: serial_port");
+        if (!isset($_POST['firmware_key'])) return array('success'=>false, 'message'=>"missing parameter: firmware_key");
 
         $serial_port = $_POST['serial_port'];
-        require "Modules/admin/admin_model.php";     
-        if (!in_array($serial_port,Admin::listSerialPorts())) return "Invalid serial port";
+        if (!in_array($serial_port,$admin->listSerialPorts())) return array('success'=>false, 'message'=>"Invalid serial port");
         
         $firmware_key = $_POST['firmware_key'];        
-        $firmware_available = Admin::firmware_available();
-        if (!isset($firmware_available->$firmware_key)) return "invalid firmware";
+        $firmware_available = $admin->firmware_available();
+        if (!isset($firmware_available->$firmware_key)) return array('success'=>false, 'message'=>"Invalid firmware");
         
-        $update_script = $settings['openenergymonitor_dir']."/EmonScripts/update/atmega_firmware_upload.sh"; 
-        $redis->rpush("service-runner","$update_script $serial_port $firmware_key>$update_logfile");
-        return "service-runner trigger sent";
+        $update_script = $settings['openenergymonitor_dir']."/EmonScripts/update/atmega_firmware_upload.sh";
+        return $admin->runService($update_script, "$serial_port $firmware_key>".$admin->update_logfile());
     }
     
     if ($route->action == 'update-log') {
         $route->format = "text";
-        if (file_exists($update_logfile)) {
+        if (file_exists($admin->update_logfile())) {
             ob_start();
-            passthru("cat " . $update_logfile);
+            passthru("cat " . $admin->update_logfile());
             return trim(ob_get_clean());
         }
-        else if (file_exists($old_update_logfile)) {
+        else if (file_exists($admin->old_update_logfile())) {
             ob_start();
-            passthru("cat " . $old_update_logfile);
+            passthru("cat " . $admin->old_update_logfile());
             return trim(ob_get_clean());
         }
         else {
-            return "$update_logfile does not exist";
+            $route->format = "json";
+            return array('success'=>false, 'message'=>$admin->update_logfile()." does not exist");
         }
     }
     
     if ($route->action == 'update-log-download') {
         header("Content-Type: application/octet-stream");
         header("Content-Transfer-Encoding: Binary");
-        header("Content-disposition: attachment; filename=\"" . basename($update_logfile) . "\"");
+        header("Content-disposition: attachment; filename=\"" . basename($admin->update_logfile()) . "\"");
         header("Pragma: no-cache");
         header("Expires: 0");
         flush();
-        if (file_exists($update_logfile)) {
+        if (file_exists($admin->update_logfile())) {
             ob_start();
-            readfile($update_logfile);
+            readfile($admin->update_logfile());
             echo(trim(ob_get_clean()));
-        } else if (file_exists($old_update_logfile)) {
+        } else if (file_exists($admin->old_update_logfile())) {
             ob_start();
-            readfile($old_update_logfile);
+            readfile($admin->old_update_logfile());
             echo(trim(ob_get_clean()));
         } else {
-            echo($update_logfile . " does not exist!");
+            echo($admin->update_logfile() . " does not exist!");
         }
         exit;
     }
-    
+
     // ----------------------------------------------------------------------------------------
     // Component manager
     // ----------------------------------------------------------------------------------------
     if ($route->action == 'components-installed' && $session['write']) {
         $route->format = "json";
-        require "Modules/admin/admin_model.php";
-        return Admin::component_list(true);
+        return $admin->component_list(true);
     }
     
     if ($route->action == 'components-available' && $session['write']) {
         $route->format = "json";
-        if (file_exists("/opt/openenergymonitor/EmonScripts/components_available.json")) {
-            return json_decode(file_get_contents("/opt/openenergymonitor/EmonScripts/components_available.json"));
-        } else {
-            return false;
-        }
+        return $admin->components_available();
     }
    
     if ($route->action == 'component-update' && $session['write']) {
-        $route->format = "text";
-
-        require "Modules/admin/admin_model.php";                
-        $components = Admin::component_list(false);
+        $route->format = "json";
+             
+        $components = $admin->component_list(false);
         
-        if (!isset($_GET['module'])) return "missing module parameter"; else $module = $_GET['module'];
-        if (!isset($_GET['branch'])) return "missing branch parameter"; else $branch = $_GET['branch'];
-        
-        if (!isset($components[$module])) return "invalid module";
+        if (!isset($_GET['module'])) return array('success'=>false, 'message'=>"missing parameter: module"); else $module = $_GET['module'];
+        if (!isset($_GET['branch'])) return array('success'=>false, 'message'=>"missing parameter: branch"); else $branch = $_GET['branch'];
+        if (!isset($components[$module])) return array('success'=>false, 'message'=>"Invalid module");;
         $module_path = $components[$module]["path"];     
         
         // if branch is not in available branches, check that it is not the current branch
         if (!in_array($branch,$components[$module]["branches_available"])) {
             $current_branch = @exec("git -C $module_path rev-parse --abbrev-ref HEAD");
-            if ($branch!=$current_branch) return "invalid branch";
+            if ($branch!=$current_branch) return array('success'=>false, 'message'=>"Invalid branch");;
         }
-        
-        $script = "/opt/openenergymonitor/EmonScripts/update/update_component.sh";
-        $redis->rpush("service-runner","$script $module_path $branch>$update_logfile");
-        return "cmd sent";
+
+        $script = $settings['openenergymonitor_dir']."/EmonScripts/update/update_component.sh";
+        return $admin->runService($script, "$module_path $branch>".$admin->update_logfile());
     }
     
     if ($route->action == 'components-update-all' && $session['write']) {
-        $route->format = "text";
-        if (!isset($_GET['branch'])) return "missing branch parameter"; else $branch = $_GET['branch'];
+        $route->format = "json";
+        if (!isset($_GET['branch'])) return array('success'=>false, 'message'=>"missing parameter: branch"); else $branch = $_GET['branch'];
         
         // Validate branch
-        require "Modules/admin/admin_model.php";
         $available_branches = array();
-        foreach (Admin::component_list(false) as $c) {
+        foreach ($admin->component_list(false) as $c) {
             foreach ($c["branches_available"] as $b) {
                 if (!in_array($b,$available_branches)) $available_branches[] = $b;
             }
         }
-        if (!in_array($branch,$available_branches)) return "invalid branch";
+        if (!in_array($branch,$available_branches)) return array('success'=>false, 'message'=>"Invalid branch");;
         
-        $script = "/opt/openenergymonitor/EmonScripts/update/update_all_components.sh";
-        $redis->rpush("service-runner","$script $branch>$update_logfile");
-        return "cmd sent";
+        $script = $settings['openenergymonitor_dir']."/EmonScripts/update/update_all_components.sh";
+        return $admin->runService($script, "$branch>".$admin->update_logfile());
     }
     
     // ----------------------------------------------------------------------------------------
@@ -364,28 +331,30 @@ function admin_controller()
             return $pid;
         }
         if ($route->subaction == 'start') {
-            $route->format = "text";
+            $route->format = "json";
             
-            if (!isset($_POST['serialport'])) return "missing parameter: serialport";
-            if (!isset($_POST['baudrate'])) return "missing parameter: baudrate";
-            
+            if (!isset($_POST['serialport'])) return array('success'=>false, 'message'=>"missing parameter: serialport");
+            if (!isset($_POST['baudrate'])) return array('success'=>false, 'message'=>"missing parameter: baudrate");
             $serialport = $_POST['serialport'];
             $baudrate = (int) $_POST['baudrate'];
             
-            require "Modules/admin/admin_model.php";
-            if (!in_array($serialport,Admin::listSerialPorts())) return "invalid serial port";
-            if (!in_array($baudrate,array(9600,38400,115200))) return "invalid baud rate";
+            if (!in_array($serialport,$admin->listSerialPorts())) return array('success'=>false, 'message'=>"invalid serial port");
+            if (!in_array($baudrate,array(9600,38400,115200))) return array('success'=>false, 'message'=>"invalid baud rate");
             
             $script = "/var/www/emoncms/scripts/serialmonitor/start.sh";
-            $redis->rpush("service-runner","$script $baudrate /dev/$serialport");
-            return "service-runner serialmonitor start"; 
+            return $admin->runService($script, "$baudrate /dev/$serialport");
         }
         if ($route->subaction == 'stop') {
-            $route->format = "text";  
+            $route->format = "json";
+            if (!$redis) return array('success'=>false, 'message'=>"Redis not enabled");
             $redis->rpush("serialmonitor","exit");
-            return "serialmonitor stop command sent";
+            return array('success'=>true,  'message'=>"serialmonitor stop command sent"); 
         }
         if ($route->subaction == 'log') {
+            if (!$redis) {
+                $route->format = "json";
+                return array('success'=>false, 'message'=>"Redis not enabled");
+            }
             $route->format = "text";
             $out = "";
             while($redis->llen('serialmonitor-log')) {
@@ -394,14 +363,18 @@ function admin_controller()
             return $out;
         }
         if ($route->subaction == 'cmd') {
-            $route->format = "text";
+            $route->format = "json";
+            if (!$redis) return array('success'=>false, 'message'=>"Redis not enabled");
             $cmd = "";
             if (isset($_GET['cmd'])) $cmd = $_GET['cmd'];
             if (isset($_POST['cmd'])) $cmd = $_POST['cmd'];
             if ($cmd!="") {
                 $redis->rpush("serialmonitor",$cmd);
-                return "serialmonitor cmd sent: $cmd";
+                return array('success'=>true, 'message'=>"serialmonitor cmd sent: $cmd");
+            } else {
+                return array('success'=>false, 'message'=>"no command");
             }
+                
         }
     }
     
@@ -412,14 +385,14 @@ function admin_controller()
         if ($settings['log']['enabled']) {
             header("Content-Type: application/octet-stream");
             header("Content-Transfer-Encoding: Binary");
-            header("Content-disposition: attachment; filename=\"" . basename($emoncms_logfile) . "\"");
+            header("Content-disposition: attachment; filename=\"" . basename($admin->emoncms_logfile()) . "\"");
             header("Pragma: no-cache");
             header("Expires: 0");
             flush();
-            if (file_exists($emoncms_logfile)) {
-                readfile($emoncms_logfile);
+            if (file_exists($admin->emoncms_logfile())) {
+                readfile($admin->emoncms_logfile());
             } else {
-                echo($emoncms_logfile . " does not exist!");
+                echo($admin->emoncms_logfile() . " does not exist!");
             }
             exit;
         }
@@ -427,10 +400,16 @@ function admin_controller()
     }
     
     if ($route->action == 'getlog') {
+        if (!$settings['log']['enabled']) {
+            $route->format = "json";
+            return array('success'=>false, 'message'=>"Log is disabled");
+        }
+        else if (!file_exists($admin->emoncms_logfile())) { 
+            $route->format = "json";
+            return array('success'=>false, 'message'=>$admin->emoncms_logfile() . " does not exist");
+        }
+
         $route->format = "text";
-        if (!$settings['log']['enabled']) return "Log is disabled";
-        if (!file_exists($emoncms_logfile)) return "$emoncms_logfile does not exist";
-        
         ob_start();
         // PHP replacement for tail starts here
         function read_file($file, $lines) 
@@ -462,8 +441,8 @@ function admin_controller()
             return array_reverse($text);
         }
 
-        $fsize = round(filesize($emoncms_logfile)/1024/1024,2);
-        $lines = read_file($emoncms_logfile, 25);
+        $fsize = round(filesize($admin->emoncms_logfile())/1024/1024,2);
+        $lines = read_file($admin->emoncms_logfile(), 25);
         
         foreach ($lines as $line) {
           echo $line;

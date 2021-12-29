@@ -26,11 +26,11 @@ Part of the OpenEnergyMonitor project: http://openenergymonitor.org
 
 <script type="text/javascript"><?php require "Modules/vis/vis_langjs.php"; ?></script>
 
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/common/api.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/common/vis.helper.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/multigraph/multigraph.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/feed/feed.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/vis.helper.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/multigraph/multigraph.js?v=2"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/Views/multigraph_api.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/Views/multigraph_edit.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/Views/multigraph_edit.js?v=3"></script>
 
 <link href="<?php echo $path; ?>Lib/bootstrap-datetimepicker-0.0.11/css/bootstrap-datetimepicker.min.css" rel="stylesheet">
 <script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/bootstrap-datetimepicker-0.0.11/js/bootstrap-datetimepicker.min.js"></script>
@@ -219,12 +219,10 @@ Part of the OpenEnergyMonitor project: http://openenergymonitor.org
   function selectFeed(id, feedlist, type) {
     var feedgroups = [];
     for (z in feedlist) {
-      if (feedlist[z].datatype == type || (type == 0 && (feedlist[z].datatype == 1 || feedlist[z].datatype == 2))) {
-        var group = (feedlist[z].tag === null ? "NoGroup" : feedlist[z].tag);
-        if (group!="Deleted") {
-          if (!feedgroups[group]) feedgroups[group] = []
-          feedgroups[group].push(feedlist[z]);
-        }
+      var group = (feedlist[z].tag === null ? "NoGroup" : feedlist[z].tag);
+      if (group!="Deleted") {
+        if (!feedgroups[group]) feedgroups[group] = []
+        feedgroups[group].push(feedlist[z]);
       }
     }
     var out = "<select id='"+id+"' class='options' otype='feed'>";

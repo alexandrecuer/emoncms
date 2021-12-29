@@ -51,6 +51,7 @@ function getFeedPublic(id){
 function drawMultigraphFeedlistEditor(){
   var barwidth=1;
   var graphtype;
+  var intervaltype
   var z;
   var checked="";
 
@@ -157,9 +158,15 @@ function drawMultigraphFeedlistEditor(){
     }
 
     if (typeof multigraphFeedlist[z]["graphtype"] === "undefined") {
-      graphtype=multigraphFeedlist[z]["datatype"]==="1" ? "lines" : "bars";
+      graphtype="lines";
     } else {
       graphtype=multigraphFeedlist[z]["graphtype"];
+    }
+
+    if (typeof multigraphFeedlist[z]["intervaltype"] === "undefined") {
+      intervaltype="standard";
+    } else {
+      intervaltype=multigraphFeedlist[z]["intervaltype"];
     }
 
     out += "<tr >";
@@ -182,16 +189,35 @@ function drawMultigraphFeedlistEditor(){
 
 
     if (detail==="advanced") {
+
+      out += "<tr>";
+      checked = ""; if (multigraphFeedlist[z]["average"]) { checked = "checked"; }
+      out += "<td style='text-align: right;vertical-align:middle;border-color:transparent;'>"+_Tr_Vis("Average")+"</td>";
+      out += "<td style='text-align: center;vertical-align:middle;border-color:transparent;'><input id='average'  listid='"+z+"' type='checkbox' "+checked+" /></td>";
+      checked = ""; if (multigraphFeedlist[z]["delta"]) { checked = "checked"; }
+      out += "<td style='text-align: right;vertical-align:middle;border-color:transparent;'>"+_Tr_Vis("Delta")+"</td>";
+      out += "<td style='text-align: center;vertical-align:middle;border-color:transparent;'><input id='delta'  listid='"+z+"' type='checkbox' "+checked+" /></td>";
+      out += "</tr>";
+      out += "<tr>";
+      
       checked = "checked"; if (!multigraphFeedlist[z]["skipmissing"]) { checked = ""; }
       out += "<tr>";
-      out += "<td style='text-align: right;vertical-align:middle;border-color:transparent;'>"+_Tr_Vis("Skip missing data")+"</td>";
+      out += "<td style='text-align: right;vertical-align:middle;border-color:transparent;'>"+_Tr_Vis("Skip missing")+"</td>";
       out += "<td style='text-align: center;vertical-align:middle;border-color:transparent;'><input id='skipmissing'  listid='"+z+"' type='checkbox' "+checked+" /></td>";
       checked = ""; if (multigraphFeedlist[z]["stacked"]) { checked = "checked"; }
       out += "<td style='text-align: right;vertical-align:middle;border-color:transparent;'>"+_Tr_Vis("Stack")+"</td>";
       out += "<td style='text-align: center;vertical-align:middle;border-color:transparent;'><input id='stacked'  listid='"+z+"' type='checkbox' "+checked+" /></td>";
-      out += "<td style='text-align: right;vertical-align:middle;border-color:transparent;'></td>";
       out += "</tr>";
-      out += "<tr>";
+      
+      out += "<td style='text-align: right;vertical-align:middle;border-color:transparent;'>"+_Tr_Vis("Interval Type")+"</td>";
+      out += "<td colspan='4' style='vertical-align:middle;border-color:transparent;'>";
+      out += "<select id='intervaltype-selector' listid='"+z+"' class='options' style='width:140px;margin-bottom:0px;'>";
+      out += "<option value='standard'"+ (intervaltype==="standard" && "selected") +">"+_Tr_Vis("Standard")+"</option>";
+      out += "<option value='daily'"+ (intervaltype==="daily" && "selected") +">"+_Tr_Vis("Daily")+"</option>";
+      out += "<option value='weekly'"+ (intervaltype==="weekly" && "selected") +">"+_Tr_Vis("Weekly")+"</option>";
+      out += "<option value='monthly'"+ (intervaltype==="monthly" && "selected") +">"+_Tr_Vis("Monthly")+"</option>";
+      out += "</td>";
+      out += "</tr>";
 
       out += "<td style='text-align: right;vertical-align:middle;border-color:transparent;'>"+_Tr_Vis("Graph Type")+"</td>";
       out += "<td colspan='4' style='vertical-align:middle;border-color:transparent;'>";
@@ -293,14 +319,6 @@ function getFeedTag(id){
   }
 }
 
-function getFeedDatatype(id){
-  var z;
-
-  for (z in feedlist){
-    if (feedlist[z]["id"] === id) { return feedlist[z]["datatype"]; }
-  }
-}
-
 function updateMultigraphFeedlistNames(){
   var m;
 
@@ -349,7 +367,7 @@ function loadEvents(){
 
   $(baseElement).on("click","#add",function(event){
     var feedid = $("#feedselect").val();
-    multigraphFeedlist.push({"id":feedid,"tag":getFeedTag(feedid),"name":getFeedName(feedid),"datatype":getFeedDatatype(feedid),"left":false,"right":false,"fill":false,"end":0,"skipmissing":true});
+    multigraphFeedlist.push({"id":feedid,"tag":getFeedTag(feedid),"name":getFeedName(feedid),"left":false,"right":false,"fill":false,"end":0,"skipmissing":true});
     drawMultigraphFeedlistEditor();
     visFeedData();
     modified();
@@ -478,10 +496,37 @@ function loadEvents(){
     visFeedData();
     modified();
   });
+  
+  $(baseElement).on("change","#intervaltype-selector",function(event){
+    var z = $(this).attr("listid");
+    var intervaltype = $(this).val();
+    multigraphFeedlist[z]["intervaltype"]=intervaltype;
+    drawMultigraphFeedlistEditor();
+    visFeedData();
+    modified();
+  });
 
    $(baseElement).on("click","#stacked",function(event){
     var z = $(this).attr("listid");
     multigraphFeedlist[z]["stacked"] = $(this)[0].checked;
+    visFeedData();
+    modified();
+  });
+
+   $(baseElement).on("click","#delta",function(event){
+    var z = $(this).attr("listid");
+    multigraphFeedlist[z]["delta"] = $(this)[0].checked;
+    if (multigraphFeedlist[z]["delta"]) {
+        multigraphFeedlist[z]["skipmissing"] = 0;
+        $("#skipmissing[listid="+z+"]")[0].checked = 0;
+    }
+    visFeedData();
+    modified();
+  });
+
+   $(baseElement).on("click","#average",function(event){
+    var z = $(this).attr("listid");
+    multigraphFeedlist[z]["average"] = $(this)[0].checked;
     visFeedData();
     modified();
   });
