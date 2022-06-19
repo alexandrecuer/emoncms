@@ -130,7 +130,7 @@ function feed_controller()
             }
 
             // Backwards compatibility
-            if ($route->action=="average") $average = 1;
+            if ($route->action=="average") $average = 1; else $average = 0;
             if ($route->action=="csvexport") $csv = 1;
             if (isset($_GET['mode'])) $interval = $_GET['mode'];
 
