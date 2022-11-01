@@ -102,7 +102,7 @@
                             else if (get($key) || get($key) == "false" || get($key) == 0)
                                 $array[$key] = 0;
                             else $array[$key] = $default;
-                        else if ($type==5)
+                        else if ($type==5 && !is_null(get($key)))
                             $array[$key] = preg_replace('/[^\p{L}_\p{N}\s£$€¥₽]/u','',get($key))?get($key):$default;
                         else if ($type==6)
                             $array[$key] = str_replace(',', '.', floatval((get($key)?get($key):$default)));
@@ -121,7 +121,7 @@
 
                         # we need to either urlescape the colour, or just scrub out invalid chars. I'm doing the second, since
                         # we can be fairly confident that colours are eiter a hex or a simple word (e.g. "blue" or such)
-                        else if ($type==9) // Color
+                        else if ($type==9 && !is_null(get($key))) // Color
                             $array[$key] = preg_replace('/[^\dA-Za-z]/','',get($key))?get($key):$default;
                     }
                 }
