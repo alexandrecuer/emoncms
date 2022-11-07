@@ -56,17 +56,17 @@ function feed_controller()
         if ($route->action == "list")
         {
             if ($session['public_userid']) {
-                return $feed->get_user_public_feeds($session['public_userid']);
+                return $feed->get_user_public_feeds($session['public_userid'],get("meta",false,0));
             } else if (isset($_GET['userid'])) {
-                return $feed->get_user_public_feeds((int)$_GET['userid']);
+                return $feed->get_user_public_feeds((int)$_GET['userid'],get("meta",false,0));
             } else if ($session['read']) {
-                return $feed->get_user_feeds($session['userid']);
+                return $feed->get_user_feeds($session['userid'],get("meta",false,0));
             } else {
                 return false;
             }
 
         } elseif ($route->action == "listwithmeta" && $session['read']) {
-            return $feed->get_user_feeds_with_meta($session['userid']);
+            return $feed->get_user_feeds($session['userid'],1);
         } elseif ($route->action == "getid" && $session['read']) {
             $route->format = "text";
             if (isset($_GET["tag"]) && isset($_GET["name"])) {
@@ -211,7 +211,7 @@ function feed_controller()
                     else if ($route->action == "get") return $feed->get_field($feedid,get('field')); // '/[^\w\s-]/'
                     else if ($route->action == "aget") return $feed->get($feedid);
                     else if ($route->action == "getmeta") return $feed->get_meta($feedid);
-                    else if ($route->action == "setstartdate") return $feed->set_start_date($feedid,get('startdate'));
+                    else if ($route->action == "getfeedsize") return $feed->get_feed_size($feedid);
                     else if ($route->action == "export") {
                         if ($f['engine']==Engine::MYSQL || $f['engine']==Engine::MYSQLMEMORY) return $feed->mysqltimeseries_export($feedid,get('start'));
                         elseif ($f['engine']==Engine::PHPTIMESERIES) return $feed->phptimeseries_export($feedid,get('start'));
@@ -246,9 +246,11 @@ function feed_controller()
                     // insert available here for backwards compatibility
                     } else if ($route->action == "insert" || $route->action == "update" || $route->action == "post") {
 
+                        $join = get('join',false,false);
+
                         // Single data point
                         if (isset($_GET['time']) || isset($_GET['value'])) {
-                             return $feed->post($feedid,time(),get("time"),get("value"));
+                             return $feed->post($feedid,time(),get("time"),get("value"),$join);
                         }
 
                         // Single or multiple datapoints via json format
@@ -265,7 +267,7 @@ function feed_controller()
 
                         if (!$data || count($data)==0) return array('success'=>false, 'message'=>'empty data object');
 
-                        return $feed->post_multiple($feedid,$data);
+                        return $feed->post_multiple($feedid,$data,$join);
 
                     // Delete feed
                     } else if ($route->action == "delete") {
