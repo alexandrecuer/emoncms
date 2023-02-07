@@ -5,36 +5,63 @@
 
 Emoncms is an open-source web application for processing, logging and visualising energy, temperature and other environmental data and is part of the [OpenEnergyMonitor project](http://openenergymonitor.org).
 
-![Emoncms](docs/files/emoncms_graphic.png)
+![Emoncms](emoncms_graphic.png)
 
 ## Requirements
 
-- PHP (tested with 7.0.30) 
-- MySQL or MariaDB (tested with 15.1) 
-- Apache (tested with 2.4.25)
-- Redis* (tested with 3.2.6)
+- PHP (tested with 8.1.12) 
+- MySQL or MariaDB (tested with 10.5.15) 
+- Apache (tested with 2.4.54)
+- Redis* (tested with 6.0.16)
 
 _*Redis is recommended because it reduces the number of disk writes and therefore prolongs disk life (noticeably on SD cards e.g. Raspberry Pi). Some input-processors also require Redis and fail silently if Redis is not installed. Some environments such as shared hosting or as far as we have tried Windows servers don't support Redis hence why Emoncms has a fall back mode that allows core operation without Redis._
 
-## Using Emoncms
+## Documentation
 
-### Important: Standard Emoncms and Emoncms.org
+**View the Emoncms documentation at: [https://docs.openenergymonitor.org/emoncms](https://docs.openenergymonitor.org/emoncms)**
 
-There are differences between the standard version of Emoncms and the version of Emoncms running on emoncms.org. This repository contains the code for the standard version of Emoncms. This is the version installed on the OpenEnergyMonitor SD Card that comes with the emonPi and emonBase and is recommended for all self-install versions of Emoncms.
+- [Getting started emonPi/Base](https://docs.openenergymonitor.org/emoncms/intro-rpi.html)
+- [Getting started emoncms.org](https://docs.openenergymonitor.org/emoncms/intro-remote.html)
+- [Emoncms Core Concepts](https://docs.openenergymonitor.org/emoncms/coreconcepts.html)
+- [Posting data](https://docs.openenergymonitor.org/emoncms/postingdata.html)
+- [MQTT](https://docs.openenergymonitor.org/emoncms/mqtt.html)
+- [View Graphs](https://docs.openenergymonitor.org/emoncms/graphs.html)
+- [Dashboard Builder](https://docs.openenergymonitor.org/emoncms/dashboards.html)
+- [Application dashboards](https://docs.openenergymonitor.org/emoncms/dashboards.html)
+- [Octopus Agile app](https://docs.openenergymonitor.org/emoncms/agileapp.html)
+- [Calculating Daily kWh](https://docs.openenergymonitor.org/emoncms/daily-kwh.html)
+- [Calculating Averages](https://docs.openenergymonitor.org/emoncms/daily-averages.html)
+- [Pulse counting](https://docs.openenergymonitor.org/emoncms/pulse-counting.html)
+- [Exporting CSV](https://docs.openenergymonitor.org/emoncms/export-csv.html)
+- [Histograms](https://docs.openenergymonitor.org/emoncms/histograms.html)
+- [Post Process module](https://docs.openenergymonitor.org/emoncms/postprocess.html)
+- [DemandShaper module](https://docs.openenergymonitor.org/emoncms/demandshaper.html)
+- [Import / Backup](https://docs.openenergymonitor.org/emoncms/import.html)
+- [Update & Upgrade](https://docs.openenergymonitor.org/emoncms/update.html)
+- [Remote Access](https://docs.openenergymonitor.org/emoncms/remoteaccess.html)
+- [Troubleshooting](https://docs.openenergymonitor.org/emoncms/troubleshooting.html)
 
-The emoncms.org version [Github: emoncms/emoncmsorg](http://github.com/emoncms/emoncmsorg) is a fork that is specific for multi-server installations. While both versions share the same roots, the code for emoncms.org differs significantly from the standard version of Emoncms, the user experience is intended to be similar but there are currently a number of differences in the API and look of the inputs and feeds interfaces as well as a reduced feature set in general on emoncms.org in order to ensure stability. In general development on emoncms.org moves slower than the standard Emoncms for this reason.
+**Design**
 
-**1. From the Guide**
+- [Emoncms architecture](docs/design/architecture.md)
+- [Input processing implementation](docs/design/input-processing.md)
+- [Developing a new Module](docs/design/developing-a-new-module.md)
+- [Global variables in Emoncms](docs/design/global-variables.md)
 
-- [Guide: Core Concepts](http://guide.openenergymonitor.org/emoncms/coreconcepts) - Core Emoncms concepts including inputs, input processing and feeds.
-- [Guide: Creating daily kWh graphs](http://guide.openenergymonitor.org/emoncms/daily-kwh) - How to create daily kWh graphs from cumulative kWh electricity/heat energy feeds.
-- [Guide: Daily Averages](http://guide.openenergymonitor.org/emoncms/daily-averages) - How to extract daily averages from temperature, humidity & power feeds.
-- [Guide: Exporting CSV](http://guide.openenergymonitor.org/emoncms/export-csv) - How to use the graph module and feeds interface to export CSV data for use in 3rd party programs such as OpenOffice Calc or Excel.
-- [Guide: Histograms](http://guide.openenergymonitor.org/emoncms/histograms) - How to use the histogram tool in the graph module.
-- [Guide: Home Energy Monitor](https://guide.openenergymonitor.org/applications/home-energy) - Example of configuring the MyElectric dashboard.
-- [Guide: Solar PV Monitor](https://guide.openenergymonitor.org/applications/solar-pv/) - Example of configuring the MySolar dashboard.
+**Emoncms timeseries database design (feed storage)**
 
-**2. Emoncms Terminology**
+- [Emoncms time series database development history](docs/timeseries/History.md)
+- [Fixed interval time series](docs/timeseries/Fixed-interval.md)
+- [Variable interval time series](docs/timeseries/Variable-interval.md)
+- [Improving write performance with buffering](docs/timeseries/Write-load-investigation.md)
+
+**Other**
+
+- [Backup](docs/Backup.md)
+- [CLI](docs/CLI.md)
+- [Encrypted Input](docs/input_encrypted.md)
+
+**Emoncms Terminology**
 
 - **Input:** An incoming datasource. Each input has an associated "node" identifier and a "key" sub-identifier. Inputs are entry points, only the last value and time of the input is recorded. To record historic data a feed needs to be created from an input.
 - **Input: Node:** A grouping identifier for an input or feed.
@@ -45,9 +72,7 @@ The emoncms.org version [Github: emoncms/emoncmsorg](http://github.com/emoncms/e
 
 * For a description of what each input process does in Emoncms, see the helper note within the Emoncms input processing configuration interface.
 
-**3. Emoncms.org API Reference**
-
-The following API references apply to emoncms.org. They differ slightly to the API available on emonPI/emonBase installs, the API refrence for which can be found from the inputs and feed pages when logged in locally.
+**Emoncms.org API Reference**
 
 - [Input API reference](https://emoncms.org/site/api#input)
 - [Feed API reference](https://emoncms.org/site/api#feed)
@@ -61,7 +86,7 @@ We do not recommend and are unable to support installation on shared hosting or 
 Recommended: 
 
 * [New: Debian build script](https://github.com/openenergymonitor/EmonScripts/tree/master/install/readme.md)
-* [Pre built emonSD SD-card Image Download](https://github.com/openenergymonitor/emonpi/wiki/emonSD-pre-built-SD-card-Download-&-Change-Log)
+* [Pre built emonSD SD-card Image Download](https://docs.openenergymonitor.org/emonsd/download.html)
 * [Purchase pre-loaded SD card](http://shop.openenergymonitor.com/emonsd-pre-loaded-raspberry-pi-sd-card/)
 
 Experimental (not currently up to date):
@@ -70,7 +95,7 @@ Experimental (not currently up to date):
 
 ## Modules
 
-Modules can be installed by downloading or git cloning into the emoncms/Modules folder. Be sure to check for database updates in Administration menu after installing new modules:
+Modules can be installed by downloading or git cloning into the emoncms/Modules folder. Be sure to check for database updates in Administration menu after installing new modules. The following core modules are included on the emonSD image:
 
 - [Graph module](https://github.com/emoncms/graph) - Advanced graphing module that integrates with the emoncms feed list, highly recommended; examples of use can be found in emoncms guide [[1]](http://guide.openenergymonitor.org/setup/daily-kwh)[[2]](http://guide.openenergymonitor.org/setup/daily-averages/)[[3]](http://guide.openenergymonitor.org/setup/export-csv/)[[4]](http://guide.openenergymonitor.org/setup/histograms).
 
@@ -84,17 +109,15 @@ Modules can be installed by downloading or git cloning into the emoncms/Modules 
 
 - [Wifi module]( https://github.com/emoncms/wifi.git) - [Wifi configuration interface designed for use on the emonPi](https://guide.openenergymonitor.org/setup/connect/)
 
+- [Raspberry Pi Backup / Restore module](https://github.com/emoncms/backup) (emonPi / emonBase)
+
+- [Sync module](https://github.com/emoncms/sync)
+
+- [Usefulscripts](https://github.com/emoncms/usefulscripts): Not strictly a module, more a collection of useful scripts for use with emoncms.
+
 - [DemandShaper module]( http://github.com/emoncms/demandshaper) - Schedule smartplugs, EmonEVSE smart EV chargers, heatpumps to run at best time in terms of: carbon, cost, grid strain. Based on day ahead forecasts.
 
-- [RemoteAccess module](http://github.com/emoncms/remoteaccess-client) - Emoncms Remote Access client (Beta)
-
 There are many other available modules such as the event module and openbem (open source building energy modelling module): check out the [Emoncms repo list](https://github.com/emoncms).
-
-**3rd party modules**
-
-- [CarbonCoop: ServiceAPI module](https://github.com/carboncoop/emonCMS_serviceapi)
-- [CarbonCoop: Auth0 module](https://github.com/carboncoop/emonCMS_auth0)
-
 
 ## Branches
 
@@ -102,50 +125,9 @@ There are many other available modules such as the event module and openbem (ope
 
 * [stable](https://github.com/emoncms/emoncms/tree/stable) - emonPi/emonBase release branch, regularly merged from master. Slightly more tried and tested. [See release change log](https://github.com/emoncms/emoncms/releases).
 
-* ARCHIVE [low-write (v8.5)](https://github.com/emoncms/emoncms/tree/low-write) - Old emonPi/emonBase Emoncms version ([July 15 emonSD ready-to-go SD card image](https://github.com/openenergymonitor/emonpi/wiki/emonSD-pre-built-SD-card-Download-&-Change-Log)). Low-write mode is now available in v9.0. The low write version of Emoncms is designed for running on SD cards. This is a cut down version of Emoncms supporting only the phpfina and phptimeseries feed engines (no in built feed averaging or histograms) and a reduced input processor set. **Archived branch**
-
-
-## Upgrade
-
-* [Upgrading Emoncms](docs/Upgrading.md)
-
-## Data Backup
-
-* [Backup](docs/Backup.md)
-* [Raspberry Pi Backup / Restore module](https://github.com/emoncms/backup) (emonPi / emonBase)
-
-## Development
-
-* [Emoncms Community Forum](https://community.openenergymonitor.org/c/emoncms)
-
-### Documentation development
-
-For developers: The following lists the locations of the files that define Emoncms's inbuilt documentation for the input and feed API's and input process descriptions:
-
-* The input API helper page [emoncms/Modules/input/Views/input_api.php](https://github.com/emoncms/emoncms/blob/master/Modules/input/Views/input_api.php)
-* The feed API helper page [emoncms/Modules/feed/Views/feedapi_view.php](https://github.com/emoncms/emoncms/blob/master/Modules/feed/Views/feedapi_view.php)
-* Input process descriptions are defined in the process list definition object at the top of the process list definition file here: [emoncms/Modules/process/process_processlist.php](https://github.com/emoncms/emoncms/blob/master/Modules/process/process_processlist.php)
-
 ## Tools
 
 * [PHPFina data file viewer](https://github.com/trystanlea/phpfinaview) - Easily explore phpfina timeseries feed engine data files directly without a full Emoncms installation. Useful for checking backups and archived data.
-
-#### Design
-
-*Note: due to ongoing development some docs may now be outdated*
-
-- [Emoncms architecture](docs/architecture.md)
-- [Input processing implementation](docs/input-processing.md)
-- [Developing a new Module](docs/developing-a-new-module.md)
-- [Global variables in Emoncms](docs/global-variables.md)
-
-**Emoncms timeseries database design (feed storage)**
-
-- [Emoncms time series database development history](docs/timeseries/History.md)
-- [Variable interval time series](docs/timeseries/Variable-interval.md)
-- [Fixed interval time series](docs/timeseries/Fixed-interval.md)
-- [Fixed interval with averaging time series](docs/Fixed-interval-averaging.md)
-- [Improving write performance with buffering](docs/timeseries/Write-load-investigation.md)
 
 #### Android App
 

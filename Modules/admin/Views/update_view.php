@@ -13,10 +13,10 @@
     <section class="d-md-flex justify-content-between align-items-center pb-md-2 border-top pb-md-0 text-right pb-2 px-1">
         <div class="text-left">
             <h4 class="text-info text-uppercase mb-2"><?php echo _('Full Update'); ?></h4>
-            <p><?php echo _('OS, Packages, EmonHub, Emoncms & Firmware (If new version)'); ?></p>
+            <p><?php echo _('OS, Packages, EmonHub, Emoncms (Does not include firmware update)'); ?></p>
         </div>
         <div class="btn-group">
-        <button class="update btn btn-info" type="all" title="<?php echo _('Update All'); ?> - <?php echo _('OS, Packages, EmonHub, Emoncms & Firmware (If new version)'); ?>">
+        <button class="update btn btn-info" type="all" title="<?php echo _('Update All'); ?> - <?php echo _('OS, Packages, EmonHub, Emoncms'); ?>">
             <?php echo _('Full Update'); ?>
         </button>
         </div>
@@ -74,8 +74,9 @@
             <div class="input-prepend" style="margin-bottom:0px">
                 <span class="add-on">Radio format:</span>     
                 <select id="selected_radio_format">
-                    <option value="rfm69n">Native RFM69 (New)</option>
-                    <option value="jeelib" selected>JeeLib</option>
+                   <option value="lowpowerlabs" selected>RFM69 LowPowerLabs</option>
+                    <!--<option value="jeelib_native">RFM69 JeeLib Native</option>-->
+                    <option value="jeelib_classic">RFM69 JeeLib Classic</option>
                 </select>
             </div>
             <br>
