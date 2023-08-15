@@ -273,6 +273,22 @@ class Feed
         if ($result && $id>0) return true; else return false;
     }
 
+    // read access if feed is public or owned by the user
+    public function read_access($userid,$feedid)
+    {
+        $userid = (int) $userid;
+        $feedid = (int) $feedid;
+
+        $stmt = $this->mysqli->prepare("SELECT id FROM feeds WHERE (userid=? OR public=1) AND id=?");
+        $stmt->bind_param("ii",$userid,$feedid);
+        $stmt->execute();
+        $stmt->bind_result($id);
+        $result = $stmt->fetch();
+        $stmt->close();
+
+        if ($result && $id>0) return true; else return false;
+    }
+
     public function get_id($userid,$name)
     {
         $userid = (int) $userid;
@@ -862,7 +878,7 @@ class Feed
 
         if (isset($fields->name)) {
             //remove illegal characters
-            $fields->name = trim(filter_var($fields->name, FILTER_SANITIZE_STRING));
+            $fields->name = trim(htmlspecialchars($fields->name));
             //prepare an sql statement that cannot be altered by sql injection
             if ($stmt = $this->mysqli->prepare("UPDATE feeds SET name = ? WHERE id = ?")) {
                 $stmt->bind_param("si",$fields->name, $id);

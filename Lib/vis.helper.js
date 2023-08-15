@@ -1,3 +1,6 @@
+// view class
+// used by emoncms visualisations
+// handles zooming and panning of time based data
 var view =
 {
   start:0,
@@ -19,8 +22,17 @@ var view =
     var time_window = this.end - this.start;
     var middle = this.start + time_window / 2;
     time_window = time_window * 2;
-    this.start = Math.max(middle - (time_window/2), this.first_data);
-    this.end = Math.min(middle + (time_window/2), this.now());
+    
+    this.start = middle - (time_window/2);
+    this.end = middle + (time_window/2);
+    
+    if (this.limit_x && this.start<this.first_data) {
+        this.start = this.first_data;
+    }
+    
+    if (this.limit_x && this.end>this.now()) {
+        this.end = this.now();
+    }
   },
 
   'zoomin':function ()
@@ -111,6 +123,9 @@ var view =
   }
 }
 
+// Process feed data, returns stats:
+// returns minval, maxval, diff, mean, stdev, time_elapsed, kwh, npoints, npointsnull
+// used by graph module and myheatpump app
 function stats(data)
 {
     var sum = 0;
@@ -187,6 +202,7 @@ var urlParams;
        urlParams[decode(match[1])] = decode(match[2]);
 })();
 
+// Creates a tooltip for use with flot graphs
 function tooltip(x, y, contents, bgColour, borderColour="rgb(255, 221, 221)")
 {
     var offset = 10; // use higher values for a little spacing between `x,y` and tooltip
@@ -212,15 +228,42 @@ function tooltip(x, y, contents, bgColour, borderColour="rgb(255, 221, 221)")
     });
 }
 
-function parseTimepickerTime(timestr){
+// Take a time string in the format "dd/mm/yyyy hh:mm:ss" and return a unix timestamp
+function parse_timepicker_time(timestr){
+    // Check for date and time parts
     var tmp = timestr.split(" ");
     if (tmp.length!=2) return false;
-
+    // Split date
     var date = tmp[0].split("/");
     if (date.length!=3) return false;
-
+    // Split time
     var time = tmp[1].split(":");
     if (time.length!=3) return false;
-
+    // Convert to unix timestamp
     return new Date(date[2],date[1]-1,date[0],time[0],time[1],time[2],0).getTime() / 1000;
+}
+
+
+// USED BY THE GRAPH MODULE 
+// Provided for compatibility
+function parseTimepickerTime(timestr){
+  return parse_timepicker_time(timestr);
+}
+
+// Convert a unix timestamp into a date string of format: Mon Jan 01, 00:00
+// Used for tooltips
+function tooltip_date(time_ms){
+    var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    var days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+    var d = new Date(time_ms);
+    var date = days[d.getDay()]+", "+months[d.getMonth()]+" "+d.getDate();
+    
+    var h = d.getHours();
+    if (h<10) h = "0"+h;
+    var m = d.getMinutes();
+    if (m<10) m = "0"+m;
+    var time = h+":"+m;
+
+    return date+", "+time;
 }

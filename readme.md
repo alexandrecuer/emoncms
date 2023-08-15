@@ -1,8 +1,5 @@
 # Emoncms
 
-[![Build Status](https://travis-ci.org/emoncms/emoncms.svg?branch=master)](https://travis-ci.org/emoncms/emoncms)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/fd6200361ad442a49651f1ebe10542c4)](https://www.codacy.com/app/emoncms/emoncms?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=emoncms/emoncms&amp;utm_campaign=Badge_Grade)
-
 Emoncms is an open-source web application for processing, logging and visualising energy, temperature and other environmental data and is part of the [OpenEnergyMonitor project](http://openenergymonitor.org).
 
 ![Emoncms](emoncms_graphic.png)
@@ -85,7 +82,7 @@ We do not recommend and are unable to support installation on shared hosting or 
 
 Recommended: 
 
-* [New: Debian build script](https://github.com/openenergymonitor/EmonScripts/tree/master/install/readme.md)
+* [Install with emonScripts](https://docs.openenergymonitor.org/emonsd/install.html)
 * [Pre built emonSD SD-card Image Download](https://docs.openenergymonitor.org/emonsd/download.html)
 * [Purchase pre-loaded SD card](http://shop.openenergymonitor.com/emonsd-pre-loaded-raspberry-pi-sd-card/)
 
