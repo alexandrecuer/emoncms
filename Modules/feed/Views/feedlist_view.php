@@ -166,6 +166,8 @@ body{padding:0!important}
     <h3 id="public-feeds-title" class="hide"><?php echo _('Public Feeds'); ?></h3>
 </div>
 
+<input type="text" name="filter" id="filter" placeholder="Filter feeds" style="float:right">
+
 <div class="controls" data-spy="affix" data-offset-top="100">
     <button id="expand-collapse-all" class="btn" title="<?php echo _('Collapse') ?>" data-alt-title="<?php echo _('Expand') ?>"><i class="icon icon-resize-small"></i></button>
     <button id="select-all" class="btn" title="<?php echo _('Select all') ?>" data-alt-title="<?php echo _('Unselect all') ?>"><i class="icon icon-check"></i></button>
@@ -370,6 +372,7 @@ var tmp = []; for (var z in available_intervals) tmp.push(available_intervals[z]
 // auto refresh
 update_feed_list();
 setInterval(update_feed_list,5000);
+filter.oninput = update_feed_list;
 
 var firstLoad = true;
 function update_feed_list() {
@@ -398,7 +401,12 @@ function update_feed_list() {
             $("#public-feeds-none").hide();
         }
         feeds = {};
-        for (var z in data) feeds[data[z].id] = data[z];
+        filterText = filter.value.toLowerCase()
+        for (var z in data) {
+            if (filterText == '' || data[z].name.toLowerCase().includes(filterText)) {
+                feeds[data[z].id] = data[z];
+            }
+        }
         nodes = {};
         for (var z in feeds) {
             var node = feeds[z].tag;
@@ -461,7 +469,8 @@ function update_feed_list() {
                 var title_lines = [feed.name,
                                   '-----------------------',
                                   _('Tag') + ': ' + feed.tag,
-                                  _('Feed ID') + ': ' + feedid]
+                                  _('Feed ID') + ': ' + feedid,
+                                  _('Feed Engine') + ': ' + feed_engines[feed.engine]]
                 
                 if(feed.engine == 5) {
                     title_lines.push(_('Feed Interval')+": "+(feed.interval||'')+'s')
@@ -495,7 +504,17 @@ function update_feed_list() {
                 if (feed['public']==1) publicfeed = "<i class='icon-globe'></i>";
                 
                 out += '<div class="public text-center" data-col="E">'+publicfeed+'</div>';
-                out += '  <div class="engine" data-col="G">'+feed_engines[feed.engine]+'</div>';
+                
+                let intervalstr = "";
+                if (feed.engine==5) {
+                    intervalstr = " ("+feed.interval+"s)";
+                }
+                
+                let engine_name = feed_engines[feed.engine];
+                if (engine_name=="PHPFINA") engine_name = "FIXED";
+                else if (engine_name=="PHPTIMESERIES") engine_name = "VARIABLE";  
+                
+                out += '  <div class="engine" data-col="G">'+engine_name+intervalstr+'</div>';
                 out += '  <div class="size text-center" data-col="H">'+list_format_size(feed.size)+'</div>';
                 out += '  <div class="processlist" data-col="F">'+processListHTML+'</div>';
                 out += '  <div class="node-feed-right pull-right">';
@@ -1269,11 +1288,13 @@ function feed_selection()
         $(".feed-download").show();
         $(".feed-graph").show();
         if (session_write) $(".feed-edit").show();
+        $("#filter").hide();
     } else {
         $(".feed-delete").hide();
         $(".feed-download").hide();
         $(".feed-graph").hide();
         $(".feed-edit").hide();
+        $("#filter").show();
     }
 
     // There should only ever be one feed that is selected here:

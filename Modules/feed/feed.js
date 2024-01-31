@@ -130,6 +130,9 @@ var feed = {
     },
 
     getdata: function(feedid,start,end,interval,average=0,delta=0,skipmissing=0,limitinterval=0,callback=false,context=false,timeformat='unixms'){
+    
+
+    
         let data = {
             id: feedid,
             start: start,
@@ -141,6 +144,12 @@ var feed = {
             limitinterval: limitinterval,
             timeformat: timeformat
         };
+        
+        if (typeof feedid === "object") {
+            delete data['id'];
+            data['ids'] = feedid.join(",");
+        }
+        
         if (feed.apikey) data.apikey = feed.apikey;
 
         var async = false;
@@ -148,7 +157,7 @@ var feed = {
             async = true;
         }
 
-        var feed_data = [];        
+        var non_async_result = false;
         var ajaxAsyncXdr = $.ajax({
             url: path+'feed/data.json',
             data: data,
@@ -157,24 +166,26 @@ var feed = {
             success: function(result) {
                 if (!result || result===null || result==="" || result.constructor!=Array) {
                     console.log("ERROR","feed.getdata invalid response: "+result);
+                } else {
+                    if (timeformat=="notime") {
+                        if (data.ids!=undefined) {
+                            for (var i in result) {
+                                result[i].data = feed.populate_timestamps(result[i].data, start, interval);
+                            }
+                            non_async_result = result;
+                        } else {
+                            non_async_result = feed.populate_timestamps(result, start, interval);
+                        }
+                    } else {
+                        non_async_result = result;
+                    }
                 }
+                
                 if (async) {
                     if (!context) {
                         callback(result);
                     } else {
                         callback(context,result);
-                    }
-                } else {
-                
-                    if (timeformat=="notime") {
-                        var intervalms = interval*1000;
-                        var time = Math.floor(start/intervalms)*intervalms;
-                        for (var z in result) {
-                            feed_data.push([time,result[z]]);
-                            time += intervalms;
-                        }
-                    } else {
-                        feed_data = result;
                     }
                 }
             }
@@ -182,9 +193,11 @@ var feed = {
         if (async) {
             return ajaxAsyncXdr;
         } else {
-            return feed_data;
+            return non_async_result;
         }
     },
+    
+    
     
     getdataDMY_time_of_use: function(id,start,end,interval,split)
     {
@@ -263,6 +276,17 @@ var feed = {
             } 
         });
         return meta;
-    }
+    },
+    
+    populate_timestamps: function(values, start, interval) {
+        var intervalms = interval*1000;
+        var time = Math.floor(start/intervalms)*intervalms;
+        var with_time = [];
+        for (var z in values) {
+            with_time.push([time,values[z]]);
+            time += intervalms;
+        }
+        return with_time;
+    } 
 }
 

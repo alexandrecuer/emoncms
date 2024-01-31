@@ -37,7 +37,7 @@ class Feed
         static $engines = array();
         if (!Engine::is_valid($e)) {
             $this->log->error("EngineClass() Engine id '".$e."' is not supported.");
-            return array('success'=>false, 'message'=>"ABORTED: Engine id $d is not supported.");
+            return array('success'=>false, 'message'=>"ABORTED: Engine id $e is not supported.");
         }
         if (isset($engines[$e])) {
             //$this->log->info("EngineClass() reused instance of '".get_class($engines[$e])."' id '".$e."'.");
@@ -107,15 +107,24 @@ class Feed
         }
 
         // If feed of given name by the user already exists
-        if ($this->exists_tag_name($userid,$tag,$name)) return array('success'=>false, 'message'=>'feed already exists');
+        if ($this->exists_tag_name($userid,$tag,$name)) {
+            return array('success'=>false, 'message'=>'feed already exists');
+        }
 
         $options = array();
         if ($engine == Engine::MYSQL || $engine == Engine::MYSQLMEMORY) {
-            if (!empty($options_in->name)) $options['name'] = $options_in->name;
-            if (!empty($options_in->type)) $options['type'] = $options_in->type;
-            if (isset($options_in->empty)) $options['empty'] = $options_in->empty;
+            if (!empty($options_in->name)) {
+                $options['name'] = $options_in->name;
+            }
+            if (!empty($options_in->type)) {
+                $options['type'] = $options_in->type;
+            }
+            if (isset($options_in->empty)) {
+                $options['empty'] = $options_in->empty;
+            }
+        } elseif ($engine == Engine::PHPFINA) {
+            $options['interval'] = (int) $options_in->interval;
         }
-        else if ($engine == Engine::PHPFINA) $options['interval'] = (int) $options_in->interval;
 
         // Datatype is no longer used but is required here for backwards
         // compatibility with tables already containing the field
@@ -364,6 +373,8 @@ class Feed
     // Expose metadata from engines
     public function get_meta($feedid) {
         $feedid = (int) $feedid;
+        if (!$this->exist($feedid)) return array('success'=>false, 'message'=>'Feed does not exist');
+
         $engine = $this->get_engine($feedid);
         return $this->EngineClass($engine)->get_meta($feedid);
     }
@@ -418,7 +429,7 @@ class Feed
                 $timevalue = $this->EngineClass(Engine::VIRTUALFEED)->lastvalue($f['id']);
                 $f['time'] = $timevalue['time'];
                 $f['value'] = $timevalue['value'];
-            } else if (!isset($f['time'])) {
+            } elseif (!isset($f['time'])) {
                 if ($timevalue = $this->EngineClass($f['engine'])->lastvalue($f['id'])) {
                     $this->redis->hMset("feed:$id", $timevalue);
                     $f['time'] = $timevalue['time'];
@@ -530,12 +541,14 @@ class Feed
                 $lastvalue = $this->get_timevalue($id);
                 $val = $lastvalue[$field];
             }
-            else if ($this->redis) {
+            elseif ($this->redis) {
                 $val = $this->redis->hget("feed:$id",$field);
             } else {
                 $result = $this->mysqli->query("SELECT * FROM feeds WHERE `id` = '$id'");
                 $row = $result->fetch_array();
-                if (isset($row[$field])) $val = $row[$field];
+                if (isset($row[$field])) {
+                    $val = $row[$field];
+                }
             }
             return $val;
         }
@@ -727,9 +740,9 @@ class Feed
             $date->modify("tomorrow midnight");
             if ($interval=="weekly") {
                 $date->modify("next monday");
-            } else if ($interval=="monthly") {
+            } elseif ($interval=="monthly") {
                 $date->modify("first day of next month");
-            } else if ($interval=="annual") {
+            } elseif ($interval=="annual") {
                 $date->modify("first day of january next year");
             }
             $end = $date->getTimestamp();
@@ -1134,7 +1147,7 @@ class Feed
                         $isVirtual = $this->get_engine($id)===7;
                         if (!$this->access($userid,$feedid)) {
                             return array('success'=>false, 'message'=>_("Invalid feed"));
-                        } else if ($isVirtual) {
+                        } elseif ($isVirtual) {
                             return array('success'=>false, 'message'=>_("Cannot use virtual feed as source"));
                         }
                         break;
@@ -1165,9 +1178,6 @@ class Feed
                         break;
 
                     case ProcessArg::NONE:
-                        $arg = false;
-                        break;
-
                     default:
                         $arg = false;
                         break;
