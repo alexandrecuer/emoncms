@@ -673,6 +673,11 @@ class Feed
             if (!empty($bufferdata)) {
                 // $this->log->info("get_data_combined() Buffer cache merged feedid=$feedid start=". reset($data)[0] ." end=". end($data)[0] ." bufferstart=". reset($bufferdata)[0] ." bufferend=". end($bufferdata)[0]);
 
+                $notime = false;
+                if ($timeformat === "notime") {
+                    $notime = true;
+                }
+
                 // Merge buffered data into base data timeslots (over-writing null values where they exist)
                 if (!$skipmissing && ($engine==Engine::PHPFINA || $engine==Engine::PHPTIMESERIES)) {
 
@@ -685,9 +690,16 @@ class Feed
 
                     // Merge data into base data
                     for ($z=0; $z<count($data); $z++) {
-                        $time = $data[$z][0];
-                        if (isset($bufferdata_assoc["".$time]) && $data[$z][1]==null) {
-                            $data[$z][1] = $bufferdata_assoc["".$time];
+                        if ($notime) {
+                            $time = $start + ($z * $interval);
+                            if (isset($bufferdata_assoc["".$time]) && $data[$z]==null) {
+                                $data[$z] = $bufferdata_assoc["".$time];
+                            }   
+                        } else {
+                            $time = $data[$z][0];
+                            if (isset($bufferdata_assoc["".$time]) && $data[$z][1]==null) {
+                                $data[$z][1] = $bufferdata_assoc["".$time];
+                            }      
                         }
                     }
 
@@ -697,14 +709,23 @@ class Feed
             }
         }
 
-        if ($delta) $data = $this->delta_mode_convert($feedid,$data);
+        if ($delta) $data = $this->delta_mode_convert($feedid,$data,$timeformat);
 
         // Apply dp setting
         if ($dp!=-1) {
             $dp = (int) $dp;
-            for ($i=0; $i<count($data); $i++) {
-                if ($data[$i][1]!=null) {
-                    $data[$i][1] = round($data[$i][1],$dp);
+
+            if ($timeformat=="notime") {
+                for ($i=0; $i<count($data); $i++) {
+                    if ($data[$i] !== null) {
+                        $data[$i] = round($data[$i],$dp);
+                    }
+                }
+            } else {
+                for ($i=0; $i<count($data); $i++) {
+                    if ($data[$i][1] !== null) {
+                        $data[$i][1] = round($data[$i][1],$dp);
+                    }
                 }
             }
         }
@@ -756,27 +777,44 @@ class Feed
         return $end;
     }
 
-    private function delta_mode_convert($feedid,$data) {
+    private function delta_mode_convert($feedid,$data,$timeformat) {
         // Get last value
         $dp = $this->get_timevalue($feedid);
         $time = $dp["time"];
 
-        // Calculate delta mode
-        $last_val = null;
-        for($i=0; $i<count($data)-1; $i++) {
-            // Apply current value to end of day, week, month, year, interval
-            if ($data[$i+1][1]===null && $time>$data[$i][0] && $time<=$data[$i+1][0]) {
-                $data[$i+1][1] = $dp['value'];
+        if ($timeformat=="notime") {
+             // Calculate delta mode
+             $last_val = null;
+             for($i=0; $i<count($data)-1; $i++) {
+                 // Delta calculation
+                 if ($data[$i]===null || $data[$i+1]===null) {
+                     $data[$i] = null;
+                 } else {
+                     $data[$i] = $data[$i+1] - $data[$i];
+                     $last_val = $data[$i+1];
+                 }
+             }
+             array_pop($data);           
+        } else {
+            // Calculate delta mode
+            $last_val = null;
+            for($i=0; $i<count($data)-1; $i++) {
+                // Apply current value to end of day, week, month, year, interval
+                if ($data[$i+1][1]===null && $time>$data[$i][0] && $time<=$data[$i+1][0]) {
+                    $data[$i+1][1] = $dp['value'];
+                }
+                // Delta calculation
+                if ($data[$i][1]===null || $data[$i+1][1]===null) {
+                    $data[$i][1] = null;
+                } else {
+                    $data[$i][1] = $data[$i+1][1] - $data[$i][1];
+                    $last_val = $data[$i+1][1];
+                }
             }
-            // Delta calculation
-            if ($data[$i][1]===null || $data[$i+1][1]===null) {
-                $data[$i][1] = null;
-            } else {
-                $data[$i][1] = $data[$i+1][1] - $data[$i][1];
-                $last_val = $data[$i+1][1];
-            }
+            array_pop($data);
         }
-        array_pop($data);
+
+
 
         return $data;
     }
@@ -821,11 +859,7 @@ class Feed
                 }
                 break;
             case "notime":
-                $tmp = array();
-                for ($i=0; $i<count($data); $i++) {
-                    $tmp[] = $data[$i][1];
-                }
-                $data = $tmp;
+                // pass through
                 break;
         }
         return $data;
@@ -844,7 +878,7 @@ class Feed
         $engine = $this->get_engine($feedid);
         if ($engine != Engine::PHPFINA && $engine != Engine::MYSQL ) return array('success'=>false, 'message'=>"This request is only supported by PHPFina AND MySQLTimeseries");
 
-        $data = $this->EngineClass($engine)->get_data_DMY_time_of_day($feedid,$start,$end,$interval,$timezone,$split);
+        $data = $this->EngineClass($engine)->get_data_DMY_time_of_day($feedid,$start,$end,$interval,$timezone,$timeformat,$split);
 
         // Apply different timeformats if applicable
         if ($timeformat!="unix") $data = $this->format_output_time($data,$timeformat,$timezone);
