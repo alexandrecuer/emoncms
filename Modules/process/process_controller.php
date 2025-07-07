@@ -37,7 +37,43 @@ function process_controller()
 
     elseif ($route->format == 'json')
     {
-        if ($route->action == "list") $result = $process->get_process_list();
+        if ($route->action == "list") {
+
+            $processes = $process->get_process_list();
+
+            // if a context type is specified, filter the processes
+            if (isset($_GET['context'])) {
+                $context_type = (int) $_GET['context'];
+                // can be 0 for input or 1 for virtual feed
+                if ($context_type < 0 || $context_type > 1) {
+                    return array('content'=>false, 'error'=>'Invalid context type');
+                }
+                // filter the processes based on the context type
+                return $process->filter_valid($processes, $context_type);
+            } else {
+                return $processes;
+            }
+        } else if ($route->action == "map") {
+            // Return id_num to process function name map
+            $processes = $process->get_process_list(); // Load modules modules
+        
+            // Build map of processids where set
+            $process_map = array();
+            foreach ($processes as $k=>$v) {
+                if (isset($v['id_num'])) {
+                    if (isset($process_map[$v['id_num']])) {
+                        return array(
+                            'success'=>false, 
+                            'error'=>'Duplicate process id_num found: '.$v['id_num'],
+                            'process'=>$k,
+                            'existing_process'=>$process_map[$v['id_num']]
+                        );
+                    }
+                    $process_map[$v['id_num']] = $k;
+                }
+            }
+            return $process_map;
+        }
     }
 
     return array('content'=>$result);
