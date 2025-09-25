@@ -16,8 +16,8 @@ class SharedHelper
 {
     private $export_fh;
     private $csv_field_separator;
-    private $csv_decimal_places;
-    private $csv_decimal_place_separator;
+    private $csv_dp;
+    private $csv_dp_separator;
     private $timezone;
     private $timeformat;
     private $date;
@@ -70,7 +70,7 @@ class SharedHelper
 
     public function csv_write($time,$value) {
         $time = $this->format_time($time);
-        if ($value!=null) {
+        if ($value!==null) {
             $value = number_format($value,$this->csv_dp,$this->csv_dp_separator,'');
         } else {
             $value = 'null';
@@ -82,7 +82,7 @@ class SharedHelper
         // $values[0] = $this->format_time($values[0]);
 
         for ($z=1; $z<count($values); $z++) {
-            if ($values[$z]==null) {
+            if ($values[$z]===null) {
                 $values[$z] = 'null';
             } else {
                 $values[$z] = number_format($values[$z],$this->csv_dp,$this->csv_dp_separator,'');
@@ -111,7 +111,7 @@ class SharedHelper
  * custom engine methods can be added by extending a new interface with this one.
  * use the newly extended interface to implement the custom engine class
  */
-interface engine_methods{
+interface engine_methods {
 
     /**
      * Create feed

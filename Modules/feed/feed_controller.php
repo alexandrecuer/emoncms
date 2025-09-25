@@ -30,6 +30,7 @@ function feed_controller()
     if (!$user_timezone = $user->get_timezone($session['userid'])) {
         $user_timezone = 'UTC';
     }
+    if (is_numeric($user_timezone)) $user_timezone = "UTC";
     $process = new Process($mysqli,$input,$feed,$user_timezone);
 
     // Specialised 2 way feed sync API
@@ -55,7 +56,7 @@ function feed_controller()
                 return "";
             }
             require "Modules/feed/feed_api_obj.php";
-            return view("Lib/api_tool_view.php",array("title"=>_("Feed API"), "api"=>feed_api_obj(), "selected_api"=>8));
+            return view("Lib/api_tool_view.php",array("title"=>tr("Feed API"), "api"=>feed_api_obj(), "selected_api"=>8));
         } elseif (!$session['read']) {
             return ''; // empty strings force user back to login
         }
@@ -234,6 +235,8 @@ function feed_controller()
                         return $feed->get($feedid);
                     } elseif ($route->action == "getmeta") {
                         return $feed->get_meta($feedid);
+                    } elseif ($route->action == "sha256sum") {
+                        return $feed->get_sha256sum($feedid, get('npoints', false, 0));
                     } elseif ($route->action == "getfeedsize") {
                         return $feed->get_feed_size($feedid);
                     } elseif ($route->action == "export") {

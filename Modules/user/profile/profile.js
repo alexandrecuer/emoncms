@@ -14,6 +14,7 @@ var app = new Vue({
         user: user_data,
         timezones: timezones,
         languages: languages,
+        translation_status: translation_status,
         edit: {
             username: false,
             email: false,
@@ -168,8 +169,10 @@ $("#logoutdelete").click(function() {
 $("#confirm_generate_apikey").click(function() {
     var type = $("#apikey_type").html();
     $.ajax({ url: path+"user/newapikey"+type+".json", dataType: 'json', success: function(result){
-        app.user['apikey_'+type] = result;
-        $('#modalNewApikey').modal('hide');
+        if (result.success) {
+            app.user['apikey_'+type] = result[type+'_apikey'];
+            $('#modalNewApikey').modal('hide');
+        }
     }});
 });
 

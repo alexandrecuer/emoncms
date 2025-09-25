@@ -136,6 +136,14 @@ class Process
                 return false;
             }
 
+            // If we are in Virtual feed context, check and skip processes that are not supported
+            if (isset($options['sourcetype']) && $options['sourcetype']==ProcessOriginType::VIRTUALFEED) {
+                if (isset($process_list[$processkey]['virtual_feed_context']) && $process_list[$processkey]['virtual_feed_context']==false) {
+                    $this->log->error($processkey.' is not supported in virtual feed context');
+                    return false;
+                }
+            }
+
             $arg_count = $id_and_arg_count - 1;
 
             if ($arg_count == 1) {
@@ -149,15 +157,7 @@ class Process
             }
             
             $process_function = $processkey;
-            
-            // Perhaps a more comprehensive check for valid process functions required here
-            // or rely on validation when setting up the process list?
-            $not_for_virtual_feeds = array('publish_to_mqtt','eventp__sendemail');
-            if (in_array($process_function, $not_for_virtual_feeds) && isset($options['sourcetype']) && $options['sourcetype']==ProcessOriginType::VIRTUALFEED) {
-                $this->log->error('Publish to MQTT and SendMail blocked for Virtual Feeds');
-            } else {
-                $value = $this->$process_function($args,$time,$value,$options); // execute process function
-            }
+            $value = $this->$process_function($args,$time,$value,$options); // execute process function
             
             if ($this->proc_skip_next) {
                 $this->proc_skip_next = false; 
@@ -352,25 +352,25 @@ class Process
         // Process list expected in new JSON format
         $processlist = json_decode($processlist, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            return array('success' => false, 'message' => _("Invalid process list format: "));
+            return array('success' => false, 'message' => tr("Invalid process list format: "));
         }
         if (!is_array($processlist)) {
-            return array('success' => false, 'message' => _("Process list must be an array"));
+            return array('success' => false, 'message' => tr("Process list must be an array"));
         }
 
         foreach ($processlist as $index => $inputprocess) {
             if (!isset($inputprocess['fn'])) {
-                return array('success' => false, 'message' => _("Missing process key in process list at index $index"));
+                return array('success' => false, 'message' => tr("Missing process key in process list at index $index"));
             }
 
             if (!isset($inputprocess['args']) || !is_array($inputprocess['args'])) {
-                return array('success' => false, 'message' => _("Invalid or missing args in process list at index $index"));
+                return array('success' => false, 'message' => tr("Invalid or missing args in process list at index $index"));
             }
 
             // Verify process key
             $process_key = $inputprocess['fn'];
             if (!isset($processes[$process_key])) {
-                return array('success' => false, 'message' => _("Invalid process process key:$process_key"));
+                return array('success' => false, 'message' => tr("Invalid process process key:$process_key"));
             }
 
             // Process arguments can be defined with an args array or a singular argtype
@@ -388,7 +388,7 @@ class Process
 
             // Validate number of args against arg_types
             if (count($args) != count($arg_types)) {
-                return array('success' => false, 'message' => _("Invalid number of arguments for process: $processkey"));
+                return array('success' => false, 'message' => tr("Invalid number of arguments for process: $processkey"));
             }
 
             // Validate each arg against its type
@@ -421,14 +421,14 @@ class Process
             case ProcessArg::FEEDID:
                 $feedid = (int) $arg;
                 if (!$this->arg_access("feeds", $userid, $feedid)) {
-                    return array('success' => false, 'message' => _("Invalid feed"));
+                    return array('success' => false, 'message' => tr("Invalid feed"));
                 }
                 break;
 
             case ProcessArg::INPUTID:
                 $inputid = (int) $arg;
                 if (!$this->arg_access("input", $userid, $inputid)) {
-                    return array('success' => false, 'message' => _("Invalid input"));
+                    return array('success' => false, 'message' => tr("Invalid input"));
                 }
                 break;
 
@@ -575,4 +575,74 @@ class Process
         return implode(',', $encoded_process_list);
     }
 
+    /**
+     * Fetch referenced inputs and feeds in input process list
+     * 
+     * @param string $processList The process list string to analyze.
+     * @return array An array containing referenced input and feed IDs: array("inputs"=>array(...), "feeds"=>array(...))
+     */
+    public function get_referenced_entities($processList) {
+        $referenced_inputs = array();
+        $referenced_feeds = array();
+
+        $process_list = $this->get_process_list();
+        $pairs = explode(",",$processList);
+        $total = count($pairs);
+
+        for ($i=0; $i<$total; $i++) {
+            $inputprocess = explode(":", $pairs[$i]);  // Divide into process key and arg
+
+            $id_and_arg_count = count($inputprocess);
+            // if less than 1, skip this process
+            if ($id_and_arg_count < 1) continue;
+
+            // processkey may be an id or a module function name
+            $processkey = $inputprocess[0];
+            
+            // Map ids to process key names
+            if (isset($this->process_map[$processkey])) $processkey = $this->process_map[$processkey];
+            
+            // Check if processkey exists in the process list
+            if (!isset($process_list[$processkey])) {
+                $this->log->error("get_referenced_entities() Processor '".$processkey."' does not exists. Module missing?");
+                return false;
+            }
+
+            $arg_count = $id_and_arg_count - 1;
+
+            if ($arg_count == 1) {
+                // Singular arg, just the value
+                $args = array($inputprocess[1]);
+            } else if ($arg_count > 1) {
+                // Multiple args (remove the process id)
+                $args = array_slice($inputprocess, 1);
+            } else {
+                $args = array();
+            }
+
+            // Check each arg for type INPUTID or FEEDID
+            $process_info = $this->get_info($processkey);
+            if ($process_info && isset($process_info['args']) && is_array($process_info['args'])) {
+                for ($j=0; $j<count($args); $j++) {
+                    if (isset($process_info['args'][$j]) && isset($process_info['args'][$j]['type'])) {
+                        $arg_type = $process_info['args'][$j]['type'];
+                        
+                        if ($arg_type == ProcessArg::INPUTID) {
+                            $input_id = (int) $args[$j];
+                            if ($input_id > 0 && !in_array($input_id, $referenced_inputs)) {
+                                $referenced_inputs[] = $input_id;
+                            }
+                        } elseif ($arg_type == ProcessArg::FEEDID) {
+                            $feed_id = (int) $args[$j];
+                            if ($feed_id > 0 && !in_array($feed_id, $referenced_feeds)) {
+                                $referenced_feeds[] = $feed_id;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return array("inputs" => $referenced_inputs, "feeds" => $referenced_feeds);
+    }
 }

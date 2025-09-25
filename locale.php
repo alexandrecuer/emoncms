@@ -19,7 +19,6 @@ function directoryLocaleScan($dir)
     $directoryList = array();
 
     if (isset($dir) && is_readable($dir)) {
-
         $dir = realpath($dir);
 
         $directoryList = glob($dir."/Modules/*/locale/*", GLOB_ONLYDIR);
@@ -50,27 +49,46 @@ function get_available_languages_with_names()
         $json_data = file_get_contents(__DIR__.'/Lib/language_country.json');
         $language_names = json_decode($json_data, true);
     }
+
     
     $available_languages_with_names = array();
     
-    foreach ($available_languages as $code){
-        
+    foreach ($available_languages as $code) {
         $available_languages_with_names[$code] = $language_names[$code];
     }
     return $available_languages_with_names;
 }
 
-function languagecode_to_name($langs) {
+function get_translation_status()
+{
+    // Load translation status if it exists
+    if (file_exists(__DIR__ . '/Lib/translation_status.json')) {
+        $status = json_decode(file_get_contents(__DIR__ . '/Lib/translation_status.json'), true);
+        // Calculate the percentage of completion for each language
+        foreach ($status as $lang => $data) {
+            if (isset($data['total']) && $data['total'] > 0) {
+                $status[$lang]['prc_complete'] = round(($data['translated'] / $data['total']) * 100, 0);
+            } else {
+                $status[$lang]['prc_complete'] = 0; // No translations available
+            }
+        }
+        return $status;
+    }
+    return [];
+}
+
+function languagecode_to_name($langs)
+{
     static $lang_names = null;
     if ($lang_names === null) {
         $json_data = file_get_contents(__DIR__.'/Lib/language_country.json');
         $lang_names = json_decode($json_data, true);
     }
-    foreach ($langs as $key=>$val){
-      $lang[$key]=$lang_names[$val];
+    foreach ($langs as $key => $val) {
+        $lang[$key]=$lang_names[$val];
     }
-   asort($lang);
-   return $lang;
+    asort($lang);
+    return $lang;
 }
 
 
@@ -82,7 +100,7 @@ function lang_http_accept()
         return $langs;
     }
     
-    foreach (explode(',',$http_accept_language) as $lang) {
+    foreach (explode(',', $http_accept_language) as $lang) {
         $pattern = '/^(?P<primarytag>[a-zA-Z]{2,8})'.
         '(?:-(?P<subtag>[a-zA-Z]{2,8}))?(?:(?:;q=)'.
         '(?P<quantifier>\d\.\d))?$/';
@@ -145,10 +163,7 @@ function set_lang($language)
 
 function set_lang_by_user($lang)
 {
-    $locale = $lang.'.UTF8';
-    define(LC_MESSAGES, $locale);
-    putenv("LC_ALL=$locale");
-    setlocale(LC_ALL, $locale);
+    $GLOBALS['language'] = $lang; // set the global language variable
 }
 
 function set_emoncms_lang($lang)
@@ -160,5 +175,4 @@ function set_emoncms_lang($lang)
     } else {
         set_lang_by_user($lang);
     }
-    global $session;
 }

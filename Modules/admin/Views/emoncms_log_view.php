@@ -1,3 +1,7 @@
+<?php
+defined('EMONCMS_EXEC') or die('Restricted access');
+?>
+
 <link rel="stylesheet" href="<?php echo $path?>Modules/admin/static/admin_styles.css?v=1">
 <div class="admin-container">
 
@@ -7,10 +11,10 @@
     if ($log_enabled) { ?>
     <section class="d-md-flex justify-content-between align-items-center pb-md-2 text-right px-1">
         <div class="text-left">
-            <h3 class="mt-1 mb-0"><?php echo _('Emoncms Log'); ?></h3>
+            <h3 class="mt-1 mb-0"><?php echo tr('Emoncms Log'); ?></h3>
             <p><?php
             if(is_writable($emoncms_logfile)) {
-                echo sprintf("%s <code>%s</code>",_('View last entries on the logfile:'),$emoncms_logfile);
+                echo sprintf("%s <code>%s</code>",tr('View last entries on the logfile:'),$emoncms_logfile);
             } else {
                 echo '<div class="alert alert-warn">';
                 echo "The log file has no write permissions or does not exists. To fix, log-on on shell and do:<br><pre>touch $emoncms_logfile<br>chmod 666 $emoncms_logfile</pre>";
@@ -20,10 +24,10 @@
         <div>
             <?php if(is_writable($emoncms_logfile)) { ?>
                 <button id="getlog" type="button" class="btn btn-info mb-1" data-toggle="button" aria-pressed="false" autocomplete="off">
-                    <?php echo _('Auto refresh'); ?>
+                    <?php echo tr('Auto refresh'); ?>
                 </button>
-                <a href="<?php echo $path; ?>admin/downloadlog" class="btn btn-info mb-1"><?php echo _('Download Log'); ?></a>
-                <button class="btn btn-info mb-1" id="copylogfile" type="button"><?php echo _('Copy Log to clipboard'); ?></button>
+                <a href="<?php echo $path; ?>admin/downloadlog" class="btn btn-info mb-1"><?php echo tr('Download Log'); ?></a>
+                <button class="btn btn-info mb-1" id="copylogfile" type="button"><?php echo tr('Copy Log to clipboard'); ?></button>
             <?php } ?>
         </div>
     </section>
@@ -51,7 +55,7 @@
     
     <?php 
         } else {
-            echo _('Logging is disabled in settings.');
+            echo tr('Logging is disabled in settings.');
         }
     ?>
     
@@ -92,7 +96,11 @@ function refresh_log(result){
         if (data.reauth == true) { window.location.reload(true); }
         if (data.success != undefined)  { 
             clearInterval(emoncms_log_interval);
-            output_logfile("<text style='color:red;'>"+ data.message+"</text>", $("#logreply"));
+            $container = $("#logreply");
+            $container.text(data.message);
+            $container.css('color', 'red');
+            scrollable = $container.parent('pre')[0];
+            if(scrollable) scrollable.scrollTop = scrollable.scrollHeight;
         }
     } catch (e) {
         isjson = false;
@@ -104,7 +112,7 @@ function refresh_log(result){
 }
 // display content in container and scroll to the bottom
 function output_logfile(result, $container){
-    $container.html(result);
+    $container.text(result);
     scrollable = $container.parent('pre')[0];
     if(scrollable) scrollable.scrollTop = scrollable.scrollHeight;
 }
@@ -146,7 +154,7 @@ function copyTextToClipboard(text, message) {
     snackbar(message || 'Copied to clipboard');
   } 
   catch(err) {
-    window.prompt("<?php echo _('Copy to clipboard: Ctrl+C, Enter'); ?>", text);
+    window.prompt("<?php echo tr('Copy to clipboard: Ctrl+C, Enter'); ?>", text);
   }
   document.body.removeChild(textArea);
 }

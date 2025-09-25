@@ -36,6 +36,9 @@ class Input
         // if (strlen($name)>64) return false; // restriction placed on emoncms.org
         $id = false;
 
+        // Is input creation for this user disabled?
+        if ($this->is_creation_disabled($userid)) return false;
+
         if ($stmt = $this->mysqli->prepare("INSERT INTO input (userid,name,nodeid,description,processList) VALUES (?,?,?,'','')")) {
             $stmt->bind_param("iss",$userid,$name,$nodeid);
             $stmt->execute();
@@ -144,6 +147,7 @@ class Input
         $fields = json_decode(stripslashes($fields));
 
         $success = false;
+        $fields_out = array();
 
         if (isset($fields->name)) {
             if (preg_replace('/[^\p{N}\p{L}_\s\-]/u','',$fields->name)!=$fields->name) return array('success'=>false, 'message'=>'invalid characters in input name');
@@ -153,6 +157,7 @@ class Input
             $stmt->close();
 
             if ($this->redis) $this->redis->hset("input:$id",'name',$fields->name);
+            $fields_out['name'] = $fields->name;
         }
 
         if (isset($fields->description)) {
@@ -163,10 +168,16 @@ class Input
             $stmt->close();
 
             if ($this->redis) $this->redis->hset("input:$id",'description',$fields->description);
+            $fields_out['description'] = $fields->description;
         }
 
         if ($success){
-            return array('success'=>true, 'message'=>'Field updated');
+            return array(
+                'success'=>true, 
+                'message'=>'Field updated',
+                'inputid'=>$id,
+                'fields'=>$fields_out
+            );
         } else {
             return array('success'=>false, 'message'=>'Field could not be updated');
         }
@@ -205,7 +216,14 @@ class Input
 
             if ($this->redis) $this->redis->hset("input:$id",'description',$description);
         }
-        return array('success'=>true, 'message'=>'input descriptions updated');
+
+        return array(
+            'success'=>true, 
+            'message'=>'input descriptions updated',
+            'userid'=>$userid,
+            'nodeid'=>$nodeid,
+            'names'=>$names
+        );
     }
 
 
@@ -370,7 +388,6 @@ class Input
         for ($i=0; $i<count($result); $i+=2) {
             $row = $result[$i];
             $lastvalue = $result[$i+1];
-            // $row["description"] = mb_convert_encoding($row["description"], 'UTF-8', mb_list_encodings());
             $row["description"] = mb_convert_encoding($row["description"], 'UTF-8', 'auto');
             if (!isset($lastvalue['time']) || !is_numeric($lastvalue['time']) || is_nan($lastvalue['time'])) {
                 $row['time'] = null;
@@ -482,9 +499,16 @@ class Input
 
         if ($this->redis) {
             $this->redis->del("input:$inputid");
+            $this->redis->del("input:lastvalue:$inputid");
             $this->redis->srem("user:inputs:$userid",$inputid);
         }
-        return "input deleted";
+
+        return array(
+            'success'=>true, 
+            'message'=>'Input deleted',
+            'userid'=>$userid,
+            'inputid'=>$inputid
+        );
     }
 
     // userid and inputids are checked in belongs_to_user and delete
@@ -492,7 +516,12 @@ class Input
         foreach ($inputids as $inputid) {
             if ($this->belongs_to_user($userid, $inputid)) $this->delete($userid, $inputid);
         }
-        return "inputs deleted";
+        return array(
+            'success'=>true, 
+            'message'=>'Inputs deleted',
+            'userid'=>$userid,
+            'inputids'=>$inputids
+        );
     }
 
     public function clean($userid)
@@ -505,12 +534,7 @@ class Input
             $inputid = $row['id'];
             if ($row['processList']==NULL || $row['processList']=='')
             {
-                $result = $this->mysqli->query("DELETE FROM input WHERE userid = '$userid' AND id = '$inputid'");
-
-                if ($this->redis) {
-                    $this->redis->del("input:$inputid");
-                    $this->redis->srem("user:inputs:$userid",$inputid);
-                }
+                $this->delete($userid, $inputid);
                 $n++;
             }
         }
@@ -602,7 +626,7 @@ class Input
         $stmt = $this->mysqli->prepare("UPDATE input SET processList=? WHERE id=?");
         $stmt->bind_param("si", $processlist_out, $id);
         if (!$stmt->execute()) {
-            return array('success'=>false, 'message'=>_("Error setting processlist"));
+            return array('success'=>false, 'message'=>tr("Error setting processlist"));
         }
 
         if ($this->mysqli->affected_rows>0){
@@ -687,5 +711,123 @@ class Input
                 'processList'=>$row->processList
             ));
         }
+    }
+
+
+
+    /**
+     * Check if input creation is disabled for a given user.
+     * Returns true if disabled, false otherwise.
+     */
+    public function is_creation_disabled($userid)
+    {
+        $userid = (int) $userid;
+
+        try {
+            if ($stmt = $this->mysqli->prepare("SELECT userid FROM input_disable WHERE userid=?")) {
+                $stmt->bind_param("i",$userid);
+                $stmt->execute();
+                $stmt->bind_result($disabled_userid);
+                $result = $stmt->fetch();
+                $stmt->close();
+                if ($result && $disabled_userid>0) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        } catch (mysqli_sql_exception $e) {
+            // Table does not exist or other SQL error
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * Disable input creation for a given user.
+     * Returns success or failure array.
+     */
+    public function disable_input_creation($userid)
+    {
+        $userid = (int) $userid;
+
+        $success = array(
+            'success'=>true,
+            'userid'=>$userid,
+            'message'=>'Input creation disabled'
+        );
+        $failure = array(
+            'success'=>false,
+            'userid'=>$userid,
+            'message'=>'Error disabling input creation'
+        );
+
+
+        // First check if already disabled
+        if ($this->is_creation_disabled($userid)) {
+            return $success;
+        }
+
+        try {
+            $now = time();
+            if ($stmt = $this->mysqli->prepare("INSERT INTO input_disable (userid, `time`) VALUES (?,?)")) {
+                $stmt->bind_param("ii",$userid,$now);
+                if ($stmt->execute() && $this->mysqli->affected_rows > 0) {
+                    $stmt->close();
+                    return $success;
+                } else {
+                    $stmt->close();
+                    return $failure;
+                }
+            }
+        } catch (mysqli_sql_exception $e) {
+            // Table does not exist or other SQL error
+            $failure['message'] .= ", please run database update.";
+            return $failure;
+        }
+        return $failure;
+    }
+
+    /**
+     * Enable input creation for a given user.
+     * Returns success or failure array.
+     */
+    public function enable_input_creation($userid)
+    {
+        $userid = (int) $userid;
+
+        $success = array(
+            'success'=>true,
+            'userid'=>$userid,
+            'message'=>'Input creation enabled'
+        );
+        $failure = array(
+            'success'=>false,
+            'userid'=>$userid,
+            'message'=>'Error enabling input creation'
+        );
+
+        // First check if already enabled
+        if (!$this->is_creation_disabled($userid)) {
+            return $success;
+        }
+
+        try {
+            if ($stmt = $this->mysqli->prepare("DELETE FROM input_disable WHERE userid=?")) {
+                $stmt->bind_param("i",$userid);
+                if ($stmt->execute() && $this->mysqli->affected_rows > 0) {
+                    $stmt->close();
+                    return $success;
+                } else {
+                    $stmt->close();
+                    return $failure;
+                }
+            }
+        } catch (mysqli_sql_exception $e) {
+            // Table does not exist or other SQL error
+            $failure['message'] .= ", please run database update.";
+            return $failure;
+        }
+        return $failure;
     }
 }

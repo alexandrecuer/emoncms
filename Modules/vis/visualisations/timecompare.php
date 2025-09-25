@@ -7,6 +7,8 @@
 -->
 
 <?php
+    defined('EMONCMS_EXEC') or die('Restricted access');
+    
     global $path, $vis_version;
     $embed = intval(get("embed"));
     $feedid = intval(get("feedid"));
@@ -44,7 +46,7 @@ var npoints = "<?php echo $npoints; ?>";
 var initzoom = urlParams.initzoom;
 if (initzoom==undefined || initzoom=='' || initzoom < 1) initzoom = '168'; // Initial zoom 7*24=168 hours  (1 week)
 
-$("#timecompare_title").replaceWith('<?php echo _("Time Compare: " . $feedidname); ?>');
+$("#timecompare_title").replaceWith('<?php echo tr("Time Compare: ").$feedidname; ?>');
 timecompare_init("#timecompare");
 vis_feed_data();
 
