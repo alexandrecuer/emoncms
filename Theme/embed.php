@@ -25,11 +25,27 @@ if (!in_array($settings["interface"]["themecolor"], ["blue","sun","standard","co
         <link rel="apple-touch-startup-image" href="<?php echo $path; ?>Theme/ios_load.png">
         <link rel="apple-touch-icon" href="<?php echo $path; ?>Theme/logo_normal.png">
 
-        <link href="<?php echo $path; ?>Lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-        <link href="<?php echo $path; ?>Theme/emoncms-base.css?v=<?php echo $v; ?>" rel="stylesheet">
+        <!-- Open Graph meta tags for social media link preview -->
+        <meta property="og:title" content="Emoncms - open source energy visualisation">
+        <meta property="og:description" content="Emoncms is an open-source web application for processing, logging and visualising energy, temperature and other environmental data.">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="<?php echo $_SERVER['REQUEST_SCHEME'] ?? 'http'; ?>://<?php echo $_SERVER['HTTP_HOST'] ?? $settings['domain']; ?><?php echo $_SERVER['REQUEST_URI'] ?? ''; ?>">
+        <meta property="og:image" content="<?php echo $path; ?>emoncms_graphic.png">
+        <meta property="og:site_name" content="Emoncms">
+
+        <!-- Twitter Card meta tags for social media link preview -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Emoncms - open source energy visualisation">
+        <meta name="twitter:description" content="Emoncms is an open-source web application for processing, logging and visualising energy, temperature and other environmental data.">
+        <meta name="twitter:image" content="<?php echo $path; ?>emoncms_graphic.png">
+
+        <?php
+        load_css("Lib/bootstrap/css/bootstrap.min.css");
+        load_css("Theme/css/emoncms-base.css?v=".$v);
+        load_js("Lib/js/jquery-3.6.0.min.js");
+        load_js("Lib/js/gettext.js?v=".$v);
+        ?>
         
-        <script type="text/javascript" src="<?php echo $path; ?>Lib/jquery-3.6.0.min.js"></script>       
-        <script type="text/javascript" src="<?php echo $path; ?>Lib/misc/gettext.js?v=<?php echo $v; ?>"></script>
         <script>
         var current_themecolor = "<?php echo $settings["interface"]["themecolor"]; ?>";
         var current_themesidebar = "dark";
@@ -41,7 +57,7 @@ if (!in_array($settings["interface"]["themecolor"], ["blue","sun","standard","co
         var session_read = <?php echo $session['read']; ?>;    
         
         </script>
-        <script src="<?php echo $path; ?>Lib/emoncms.js?v=<?php echo $v; ?>"></script>
+        <?php load_js("Theme/js/emoncms.js"); ?>
     </head>
     <body>
         <div>

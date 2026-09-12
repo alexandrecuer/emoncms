@@ -75,7 +75,22 @@ var feed = {
         }
         return bytag;
     },
-
+    
+    // Returns an associative array bytagname[tag][name] = id
+    by_tag_and_name: function(feeds) {
+        if (!Array.isArray(feeds) || feeds.length === 0) return {};
+        const bytagname = {};
+        for (const feed of feeds) {
+            if (!feed || !feed.tag) continue;
+            
+            if (bytagname[feed.tag]===undefined) {
+                bytagname[feed.tag] = {};
+            }
+            bytagname[feed.tag][feed.name] = feed;
+        }
+        return bytagname;
+    },
+    
     // Returns an object with feeds grouped by group
     by_id: function(feeds) {
         if (!Array.isArray(feeds) || feeds.length === 0) return {};
@@ -194,7 +209,7 @@ var feed = {
         }
     },
 
-    getdata: function(feedid,start,end,interval,average=0,delta=0,skipmissing=0,limitinterval=0,callback=false,context=false,timeformat='unixms'){
+    getdata: function(feedid,start,end,interval,average=0,delta=0,skipmissing=0,limitinterval=0,callback=false,context=false,timeformat='unixms',route='feed/data.json'){
         let data = {
             id: feedid,
             start: start,
@@ -221,7 +236,7 @@ var feed = {
 
         var non_async_result = false;
         var ajaxAsyncXdr = $.ajax({
-            url: path+'feed/data.json',
+            url: path+route,
             data: data,
             dataType: 'json',
             async: async,

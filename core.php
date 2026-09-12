@@ -15,19 +15,42 @@
 // no direct access
 defined('EMONCMS_EXEC') or die('Restricted access');
 
+/**
+ * Returns true if the TCP connection originates from a trusted proxy —
+ * i.e. localhost or a private (RFC 1918) address. This means forwarded
+ * headers (X-Forwarded-Host, X-Forwarded-Proto, etc.) were set by a local
+ * process such as nginx, a Dataplicity/ngrok tunnel agent, or Home Assistant
+ * ingress — not injected by a remote attacker.
+ */
+function is_trusted_proxy()
+{
+    $remote = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+    if ($remote === '127.0.0.1' || $remote === '::1') {
+        return true;
+    }
+    // FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE causes
+    // filter_var to return false for private/reserved ranges, true for public.
+    // So a private/loopback address returns false here, meaning is_trusted_proxy() = true.
+    return filter_var(
+        $remote,
+        FILTER_VALIDATE_IP,
+        FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+    ) === false;
+}
+
 function is_https()
 {
     // Detect if we are running HTTPS or proxied HTTPS
     if (server('HTTPS') == 'on') {
         // Web server is running native HTTPS
         return true;
-    } elseif (server('HTTP_X_FORWARDED_PROTO') == "https") {
-        // Web server is running behind a proxy which is running HTTPS
+    } elseif (is_trusted_proxy() && server('HTTP_X_FORWARDED_PROTO') == "https") {
+        // Web server is running behind a trusted local proxy which is running HTTPS
         return true;
-    } elseif (server('HTTP_X_FORWARDED_PORT') == 443) {
-        // Web server is running behind a proxy which is running HTTPS
+    } elseif (is_trusted_proxy() && server('HTTP_X_FORWARDED_PORT') == 443) {
+        // Web server is running behind a trusted local proxy which is running HTTPS
         return true;
-    } elseif (request_header('HTTP_X_FORWARDED_PROTO') == "https") {
+    } elseif (is_trusted_proxy() && request_header('HTTP_X_FORWARDED_PROTO') == "https") {
         return true;
     }
     return false;
@@ -45,7 +68,10 @@ function get_application_path($manual_domain = false)
         return "$proto://".$manual_domain."/";
     }
 
-    if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+    if (isset($_SERVER['HTTP_X_FORWARDED_HOST']) && is_trusted_proxy()) {
+        // X-Forwarded-Host is only trusted when the connection comes from a local
+        // proxy (localhost or LAN), e.g. nginx, Dataplicity, ngrok, HA ingress.
+        // A remote attacker cannot spoof this as their REMOTE_ADDR will be public.
         $filepath = "$proto://" . server('HTTP_X_FORWARDED_HOST');
         if (isset($_SERVER['HTTP_X_INGRESS_PATH'])) {
             // web server is running in ingress mode in home assistant
@@ -62,9 +88,13 @@ function get_application_path($manual_domain = false)
 
 function db_check($mysqli, $database)
 {
-    $result = $mysqli->query("SELECT count(table_schema) from information_schema.tables WHERE table_schema = '$database'");
-    $row = $result->fetch_array();
-    return $row['0'] > 0;
+    $stmt = $mysqli->prepare("SELECT count(table_schema) FROM information_schema.tables WHERE table_schema = ?");
+    $stmt->bind_param("s", $database);
+    $stmt->execute();
+    $stmt->bind_result($count);
+    $stmt->fetch();
+    $stmt->close();
+    return $count > 0;
 }
 
 function controller($controller_name)
@@ -96,6 +126,7 @@ function view($filepath, array $args = array())
     $args['path'] = $path;
     $content = '';
     if (file_exists($filepath)) {
+        unset($args['filepath']);
         extract($args);
         ob_start();
         include "$filepath";
@@ -343,7 +374,10 @@ function http_request($method, $url, $data)
     $curl = curl_init();
     curl_setopt_array($curl, $options);
     $resp = curl_exec($curl);
-    curl_close($curl);
+    if (PHP_VERSION_ID < 80000) {
+        // phpcs:ignore Generic.PHP.DeprecatedFunctions.Deprecated
+        curl_close($curl);
+    }
     return $resp;
 }
 
@@ -401,6 +435,61 @@ function generate_secure_key($length)
 }
 
 // ---------------------------------------------------------------------------------------------------------
+// Password hashing
+//
+// hash_password(), verify_password() and password_needs_upgrade() live in
+// Lib/password.php. They depend on nothing but $settings['password'], see the
+// [password] section of default-settings.ini.
+// ---------------------------------------------------------------------------------------------------------
+require_once __DIR__."/Lib/password.php";
+
+// ---------------------------------------------------------------------------------------------------------
+// Fetch the current session's apikeys, for display on the API documentation pages.
+//
+// Two conditions, both required:
+//
+// 1. The session holds write access. A session authenticated with the read only
+//    apikey has a userid but no write access, and must never be shown the write
+//    key: that would turn read access into write access.
+//
+// 2. The session is an interactive login, not one authenticated with a key.
+//    Keys are account credentials, so they follow the same rule as the rest of
+//    the account actions in user_controller: presenting one key never yields
+//    another. Without this a leaked write key would also hand over the read key.
+//
+// Returns array('logged_in'=>bool, 'read'=>string|false, 'write'=>string|false)
+// ---------------------------------------------------------------------------------------------------------
+function session_apikeys()
+{
+    global $user, $session;
+
+    $keys = array('logged_in'=>false, 'read'=>false, 'write'=>false);
+
+    if (isset($session['write']) && $session['write'] && isset($session['userid']) && $session['userid']>0
+        && empty($session['apikey'])) {
+        $keys['logged_in'] = true;
+        $keys['read'] = $user->get_apikey_read($session['userid']);
+        $keys['write'] = $user->get_apikey_write($session['userid']);
+    }
+
+    return $keys;
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Is the server side gravatar proxy available, see User::gravatar_enabled()
+//
+// Views call this before emitting an avatar <img>: with the feature off the
+// user/gravatar endpoint responds 404, so the placeholder icon is shown instead
+// of a broken image.
+// ---------------------------------------------------------------------------------------------------------
+function gravatar_enabled()
+{
+    global $user;
+
+    return $user && $user->gravatar_enabled();
+}
+
+// ---------------------------------------------------------------------------------------------------------
 // Generate a 16 bytes (128 bits) UUID - RFC 4122 compliant Version 4
 // ---------------------------------------------------------------------------------------------------------
 function guidv4()
@@ -417,4 +506,49 @@ function guidv4()
 
     // Output the 36 character UUID.
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Load JavaScript and CSS files with optional cache busting based on file modification time
+// ---------------------------------------------------------------------------------------------------------
+function load_js(string $file_path, bool $filemtime = true, $module = false): void {
+    global $path;
+    $version_string = "";
+    if ($filemtime && file_exists($file_path)) {
+        $version_string = "?v=" . filemtime($file_path);
+    }
+    $safe_path = htmlspecialchars($file_path, ENT_QUOTES, 'UTF-8');
+    if ($module) {
+        $module_str = 'type="module"';
+    } else {
+        $module_str = '';
+    }
+    echo '<script '.$module_str.' src="' . $path . $safe_path . $version_string . '"></script>' . "\n";
+}
+
+function load_css(string $file_path, bool $filemtime = true): void {
+    global $path;
+    $version_string = "";
+    if ($filemtime && file_exists($file_path)) {
+        $version_string = "?v=" . filemtime($file_path);
+    }
+    $safe_path = htmlspecialchars($file_path, ENT_QUOTES, 'UTF-8');
+    echo '<link rel="stylesheet" href="' . $path . $safe_path . $version_string . '">' . "\n";
+}
+
+function js_import_map(string $base, array $files): void {
+    global $path;
+    $imports = [];
+    foreach ($files as $file) {
+        $file_path = $base . $file;
+        $version_string = "";
+        if (file_exists($file_path)) {
+            $version_string = "?v=" . filemtime($file_path);
+        }
+        $specifier = $path . $file_path;
+        $url = htmlspecialchars($path . $file_path . $version_string, ENT_QUOTES, 'UTF-8');
+        $imports[$specifier] = $url;
+    }
+    $json = json_encode(['imports' => $imports]);
+    echo "<script type=\"importmap\">{$json}</script>\n";
 }

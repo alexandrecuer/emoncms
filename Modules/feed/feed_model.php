@@ -71,10 +71,6 @@ class Feed
                     require "Modules/feed/engine/MysqlMemory.php";           // Mysql Memory engine
                     $engines[$e] = new MysqlMemory($this->mysqli);
                     break;
-                case (string)Engine::CASSANDRA :
-                    require "Modules/feed/engine/CassandraEngine.php";  // Cassandra engine
-                    $engines[$e] = new CassandraEngine($this->settings['cassandra']);
-                    break;
                 default :
                     $this->log->error("EngineClass() Engine id '".$e."' is not supported.");
                     // throw new Exception("ABORTED: Engine id '".$e."' is not supported.");
@@ -272,6 +268,25 @@ class Feed
         return $feedexist;
     }
 
+    // Return true only if every feed id in the list is public.
+    // Used to decide whether a graph/multigraph config may be shared without
+    // a session. Fails closed: anything that cannot be shown to be a public
+    // feed makes the whole set non-public. That includes a missing feed, an id
+    // that is not a positive integer, and an empty or non array list - there is
+    // no public feed to justify sharing, so there is nothing to grant.
+    public function all_feeds_public($feedids)
+    {
+        if (!is_array($feedids) || !count($feedids)) return false;
+        foreach ($feedids as $id) {
+            if (!is_numeric($id) || (int) $id < 1) return false;
+            $id = (int) $id;
+            if (!$this->exist($id)) return false;
+            $f = $this->get($id);
+            if (empty($f['public'])) return false;
+        }
+        return true;
+    }
+
     // Check both if feed exists and if the user has access to the feed
     public function access($userid,$feedid)
     {
@@ -350,7 +365,7 @@ class Feed
     // Update single feed size
     public function update_feed_size($feedid) {
         $feedid = (int) $feedid;
-        $size = $this->get_feed_size($feedid);
+        $size = (int) $this->get_feed_size($feedid);
         $this->mysqli->query("UPDATE feeds SET `size` = '$size' WHERE `id`= '$feedid'");
         if ($this->redis) $this->redis->hset("feed:$feedid",'size',$size);
         return $size;
@@ -736,7 +751,7 @@ class Feed
             }
         }
 
-        if ($delta) $data = $this->delta_mode_convert($feedid,$data,$timeformat);
+        if ($delta) $data = $this->delta_mode_convert($feedid,$data,$timeformat, $start,$interval);
 
         // Apply dp setting
         if ($dp!=-1) {
@@ -804,24 +819,33 @@ class Feed
         return $end;
     }
 
-    private function delta_mode_convert($feedid,$data,$timeformat) {
+    private function delta_mode_convert($feedid,$data,$timeformat,$start,$interval) {
         // Get last value
         $dp = $this->get_timevalue($feedid);
         $time = $dp["time"];
 
         if ($timeformat=="notime") {
-             // Calculate delta mode
-             $last_val = null;
-             for($i=0; $i<count($data)-1; $i++) {
-                 // Delta calculation
-                 if ($data[$i]===null || $data[$i+1]===null) {
-                     $data[$i] = null;
-                 } else {
-                     $data[$i] = $data[$i+1] - $data[$i];
-                     $last_val = $data[$i+1];
-                 }
-             }
-             array_pop($data);           
+            // Calculate delta mode
+            $last_val = null;
+            for($i=0; $i<count($data)-1; $i++) {
+                // Calculate time for this interval to check if current value should be applied
+                $calculated_time_start = $start + ($i * $interval);
+                $calculated_time_end = $start + (($i+1) * $interval);
+                
+                // Apply current value to end of day, week, month, year, interval
+                if ($data[$i+1]===null && $time>$calculated_time_start && $time<=$calculated_time_end) {
+                    $data[$i+1] = $dp['value'];
+                }
+                
+                // Delta calculation
+                if ($data[$i]===null || $data[$i+1]===null) {
+                    $data[$i] = null;
+                } else {
+                    $data[$i] = $data[$i+1] - $data[$i];
+                    $last_val = $data[$i+1];
+                }
+            }
+            array_pop($data);           
         } else {
             // Calculate delta mode
             $last_val = null;
@@ -840,9 +864,6 @@ class Feed
             }
             array_pop($data);
         }
-
-
-
         return $data;
     }
 
@@ -1028,6 +1049,70 @@ class Feed
         } else {
             return array('success'=>false, 'message'=>'Field could not be updated');
         }
+    }
+
+    /**
+     * Update fields on multiple feeds in a single call.
+     *
+     * @param int    $userid
+     * @param string $feeds_json  JSON-encoded array of objects: {id, name?, tag?, unit?, public?}
+     * @return array {success, results: {<feedid>: {success, message}}}
+     */
+    public function set_fields_multiple($userid, $feeds_json)
+    {
+        $userid = (int) $userid;
+        $feeds = json_decode(stripslashes($feeds_json), true);
+
+        if (!is_array($feeds) || empty($feeds)) {
+            return array('success' => false, 'message' => 'Invalid input data');
+        }
+
+        $results = array();
+        $any_success = false;
+
+        foreach ($feeds as $item) {
+            $id = isset($item['id']) ? (int) $item['id'] : 0;
+
+            if ($id <= 0) {
+                $results[$id] = array('success' => false, 'message' => 'Invalid feed id');
+                continue;
+            }
+
+            if (!$this->exist($id)) {
+                $results[$id] = array('success' => false, 'message' => 'Feed does not exist');
+                continue;
+            }
+
+            $f = $this->get($id);
+            if ((int) $f['userid'] !== $userid) {
+                $results[$id] = array('success' => false, 'message' => 'Access denied');
+                continue;
+            }
+
+            // Check tag:name uniqueness if either is changing
+            if (isset($item['name']) || isset($item['tag'])) {
+                $new_name = isset($item['name']) ? $item['name'] : $f['name'];
+                $new_tag  = isset($item['tag'])  ? $item['tag']  : $f['tag'];
+                $existing = $this->exists_tag_name($userid, $new_tag, $new_name);
+                if ($existing !== false && $existing != $id) {
+                    $results[$id] = array('success' => false, 'message' => 'Tag:Name combination already exists');
+                    continue;
+                }
+            }
+
+            // Build fields subset and delegate to set_feed_fields for validation + redis
+            $fields = array();
+            if (isset($item['name']))   $fields['name']   = $item['name'];
+            if (isset($item['tag']))    $fields['tag']    = $item['tag'];
+            if (isset($item['unit']))   $fields['unit']   = $item['unit'];
+            if (isset($item['public'])) $fields['public'] = $item['public'];
+
+            $response = $this->set_feed_fields($id, json_encode($fields, JSON_UNESCAPED_UNICODE));
+            $results[$id] = array('success' => $response['success'], 'message' => $response['message']);
+            if ($response['success']) $any_success = true;
+        }
+
+        return array('success' => $any_success, 'results' => $results);
     }
 
     public function set_timevalue($id, $value, $time)
@@ -1285,6 +1370,7 @@ class Feed
     /* Redis helpers */
     private function load_to_redis($userid)
     {
+        $userid = (int) $userid;
         $result = $this->mysqli->query("SELECT * FROM feeds WHERE `userid` = '$userid'");
         while ($row = $result->fetch_object())
         {
@@ -1314,6 +1400,7 @@ class Feed
 
     private function load_feed_to_redis($id)
     {
+        $id = (int) $id;
         $result = $this->mysqli->query("SELECT * FROM feeds WHERE `id` = '$id'");
         $row = $result->fetch_object();
         if (!$row) {
@@ -1348,6 +1435,7 @@ class Feed
     /* Other helpers */
     private function get_engine($feedid)
     {
+        $feedid = (int) $feedid;
         if ($this->redis) {
             $engine = $this->redis->hget("feed:$feedid",'engine');
         } else {

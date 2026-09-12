@@ -2,13 +2,16 @@
 # ------------------------------------------------------------
 # Default emoncms settings.php - DO NOT EDIT!!
 # ------------------------------------------------------------
+
+// no direct access
+defined('EMONCMS_EXEC') or die('Restricted access');
     
 $_settings = array(
 // Set Emoncms installation domain here to secure installation e.g domain = myemoncmsinstall.org
 "domain" => false,
-// Suggested installation path for symlinked emoncms modules /opt/emoncms
+// Installation path for symlinked emoncms modules
 "emoncms_dir" => "/opt/emoncms",
-// Suggested installation path for emonpi and EmonScripts repository: /opt/openenergymonitor
+// Installation path for the emonpi and EmonScripts repository
 "openenergymonitor_dir" => "/opt/openenergymonitor",
 
 // Show all fatal PHP errors
@@ -18,7 +21,19 @@ $_settings = array(
 // URL Example: http://localhost/emoncms/admin/db
 "updatelogin" => false,
 
-// Mysql database settings
+// index.php: force a redirect to https for every request except login.
+// Leave true unless the install genuinely has no certificate.
+// "https_enable" => true,
+
+// Read only mode. Non admin users keep read access but lose write access, and
+// registration is turned off.
+"ui_read_only_mode" => false,
+
+// -----------------------------------------------------------------------
+// Storage and services
+// -----------------------------------------------------------------------
+
+// MySQL / MariaDB connection.
 "sql"=>array(
     "server"   => "localhost",
     "database" => "emoncms",
@@ -36,7 +51,7 @@ $_settings = array(
     'port'    => 6379,
     'auth'    => '',
     'dbnum'   => '',
-    'prefix'  => 'emoncms'
+    'prefix'  => 'emoncms' // should this be the default here?
 ),
 
 // MQTT
@@ -54,27 +69,46 @@ $_settings = array(
     'userid'    => 1,
     'multiuser' => false,
     'pub_count' => false, // Publish message count to MQTT every 5 minutes
+
+    // secure MQTT parameters
+    // capath must be defined to enable SSL usage.
+    // This is the only setting required to connect to a SSL mqtt broker.
+    //'capath'   => '/etc/ssl/certs',
+    // The following settings are related to your CLIENT certificate, if your broker requires client authentication.
+    // certpath must point to your client certificate
+    //'certpath' => '/etc/letsencrypt/live/yoursite/fullkey.pem',
+    // keypath must point to your client private key
+    //'keypath'  => '/etc/letsencrypt/live/yoursite/privatekey.pem',
+    // keypw is the client private key password.
+    // do not define if your private key is not password protected
+    //'keypw'    => ''
 ),
 
-// Input
+// -----------------------------------------------------------------------
+// Inputs and feeds
+// -----------------------------------------------------------------------
+
 "input"=>array(
     // Max number of allowed different inputs per user. For limiting garbage rf data
     'max_node_id_limit' => 32
 ),
 
-// Feed settings
 "feed"=>array(
-    // Supported engines. Uncommented engines will not be available for user to create a new feed using it. Existing feeds with a hidden engine still work.
-    // Place a ',' as the first character on all uncommented engines lines but first.
-    'engines_hidden'=>array(
-     Engine::MYSQL         // 0  Mysql traditional
-    ,Engine::MYSQLMEMORY   // 8  Mysql with MEMORY tables on RAM. All data is lost on shutdown
-    //,Engine::PHPTIMESERIES // 2
-    //,Engine::PHPFINA      // 5
-    ,Engine::CASSANDRA    // 10 Apache Cassandra
-    ),
+    // The following is a list of feed engines that are disabled by default
+    // Existing feeds on a hidden engines keep working and stay readable.
+    //
+    //   0  MYSQL           traditional mysql
+    //   2  PHPTIMESERIES   variable interval
+    //   5  PHPFINA         fixed interval
+    //   6  PHPFIWA         fixed interval with averaging (deprecated)
+    //   8  MYSQLMEMORY     mysql MEMORY tables, all data lost on shutdown
+    //
+    // This should default to an empty array. A non-empty default here could not be cleared from settings.php
+    'engines_hidden' => array(),
 
-    // Redis Low-write mode
+    // Low-write mode. Data is buffered in redis and flushed to disk by the
+    // feedwriter service rather than written on every input. Requires redis
+    // enabled and the feedwriter service running.
     'redisbuffer'   => array(
         // If enabled is true, requires redis enabled and feedwriter service running
         'enabled' => false,
@@ -82,25 +116,26 @@ $_settings = array(
         'sleep' => 60
     ),
     
-    // Engines working folder. Default is /var/lib/phpfina,phptimeseries
-    // On windows or shared hosting you will likely need to specify a different data directory--
-    // Make sure that emoncms has write permission's to the datadirectory folders
-    'phpfina'       => array('datadir'  => '/var/lib/phpfina/'),
-    'phptimeseries' => array('datadir'  => '/var/lib/phptimeseries/'),
-    'cassandra'     => array('keyspace' => 'emoncms'),
-    // experimental feature for virtual feeds average, default is true, set to false to activate average agregation with all data points, will be slower
-    'virtualfeed'   => array('data_sampling' => false),
-    'mysqltimeseries'   => array('data_sampling' => false),
-    // Datapoint limit. Increasing this effects system performance but allows for more data points to be read from one api call
-    'max_datapoints'        => 8928,
+    // Engine data directories. Emoncms must be able to write to these.
+    'phpfina'       => array('datadir' => '/var/opt/emoncms/phpfina/'),
+    'phptimeseries' => array('datadir' => '/var/opt/emoncms/phptimeseries/'),
     
-    // Minumum feed interval
+    // MysqlTimeSeries table naming. With generic true every feed is stored in a
+    // table named prefix + feed id. Set to false to name each table on creation.
+    // The engine can also use its own database server, add 'server', 'port',
+    // 'database', 'username' and 'password' here to enable that.
+    'mysqltimeseries' => array('generic' => true, 'prefix' => 'feed_'),
+
+    // Minumum PHPFina feed interval
     'min_feed_interval' => 10,
     
+    // Most datapoints one feed/data call may return. Raising it allows longer
+    // ranges in a single request at the cost of memory and response time.
+    'max_datapoints' => 70000,
+
     // CSV export options for the number of decimal_places, decimal_place_separator and field_separator
     // The thousands separator is not used (specified as "nothing")
-    // NOTE: don't make $csv_decimal_place_separator == $csv_field_separator
-    // Adjust as appropriate for your location
+    
     // number of decimal places
     'csv_decimal_places' => 2,
 
@@ -114,7 +149,45 @@ $_settings = array(
     'csv_downloadlimit_mb' => 25
 ),
 
-// User Interface settings
+// -----------------------------------------------------------------------
+// Accounts
+// -----------------------------------------------------------------------
+
+// Account password hashing
+//
+// algo is "bcrypt" (default) or "argon2id".
+//
+// bcrypt: always available, low memory use, sufficient for a single user RPi
+//
+// argon2id is stronger, because its cost is memory as well as time and memory is
+// the scarce resource on a GPU cracking rig. Use it where you control the server
+// and can spare the RAM. It needs PHP built with libargon2, and its hashes are 97
+// characters, so run the database update first so that users.password is
+// varchar(255). If argon2 is unavailable emoncms falls back to bcrypt and notes
+// it in the error log.
+//
+// Changing this is safe at any time: existing hashes still verify whatever they
+// were written with, and each account is rewritten to the new algorithm the next
+// time its owner logs in.
+"password"=>array(
+    'algo' => "bcrypt",
+
+    // bcrypt: 10 is roughly 50ms on a modest x86 server, more on a Pi.
+    // Each step up doubles the work.
+    'bcrypt_cost' => 10,
+
+    // argon2id: memory in KiB, then passes, then threads. 65536 KiB (64 MiB) with
+    // 3 passes is roughly 140ms on a modest x86 server. This much memory is held
+    // per concurrent login.
+    'argon2_memory_cost' => 65536,
+    'argon2_time_cost' => 3,
+    'argon2_threads' => 1
+),
+
+// -----------------------------------------------------------------------
+// User interface
+// -----------------------------------------------------------------------
+
 "interface"=>array(
 
     // Applicaton name
@@ -123,21 +196,12 @@ $_settings = array(
     // gettext  translations are found under each Module's locale directory
     'default_language' => 'en_GB',
 
-    // Theme location (folder located under Theme/, and must have the same structure as the basic one)
-    'theme' => "basic",
-    
     // Theme colour options: "standard", "blue", "sun"
     'themecolor' => "blue",
 
-    // Favicon filenme in Theme/$theme
+    // Favicon filename in Theme/
     'favicon' => "favicon.png",
 
-    // Main menu collapses on lower screen widths
-    'menucollapses' => false,
-    
-    // Show menu titles
-    'show_menu_titles' => true,
-    
     // Default controller and action if none are specified and user is anonymous
     'default_controller' => "user",
     'default_action' => "login",
@@ -145,9 +209,9 @@ $_settings = array(
     // Default controller and action if none are specified and user is logged in
     'default_controller_auth' => "feed",
     'default_action_auth' => "list",
-    
-    // Default feed viewer: "vis/auto?feedid=" or "graph/" - requires module https://github.com/emoncms/graph
-    'feedviewpath' => "vis/auto?feedid=",
+
+    // Requires module https://github.com/emoncms/graph
+    'feedviewpath' => "graph/",
 
     // Enable multi user emoncms.
     // If set to false, emoncms will automatically remove the register form and
@@ -159,15 +223,16 @@ $_settings = array(
 
     // Allow user to reset password
     'enable_password_reset' => false,
-    
+
     // If installed on Emonpi, allow admin menu tools
     'enable_admin_ui' => false,
-    
-    // Show update section in admin
-    'enable_update_ui' => true,
-    
+
     // Email verification
-    'email_verification' => false
+    'email_verification' => false,
+
+    // Disable rate limiting (login, register, auth, etc.)
+    // WARNING: only set to true in development/test environments
+    'disable_rate_limiting' => false
 ),
 
 "public_profile"=>array(
@@ -175,29 +240,54 @@ $_settings = array(
     // Allows http://yourdomain.com/[username]/[dash alias] or ?id=[dash id]
     // Alternative to http://yourdomain.com/dashboard/view?id=[dash id]
     // Add optional '&embed=1' in the end to remove header and footer
-    'enabled' => true,
-    'controller' => "dashboard",
-    'action' => "view"
+    'enabled' => true
 ),
 
-// (OPTIONAL) Email SMTP, used for password reset or other email functions
-"smtp"=>array(
-    // Email address to email proccessed input values
-    'default_emailto' => '',
+// -----------------------------------------------------------------------
+// Email
+// -----------------------------------------------------------------------
+
+// How email is delivered.
+//
+// transport selects one of:
+//   smtp        SMTP relay, configured in the "smtp" block below
+//   sendmail    the local /usr/sbin/sendmail binary
+//   mailersend  the MailerSend HTTP API
+//
+// Empty means smtp, or sendmail where the deprecated "smtp" sendmail flag is
+// set, so installs that predate this block need no change.
+"email"=>array(
+    'transport' => '',
+
+    // Address email is sent from, used by every transport
     'from_email' => '',
     'from_name' => '',
-    // sendmail, when enabled we use local email server instead smtp relay
-    'sendmail' => false,
-    // lines below are ignored when sendmail is enabled
+
+    // Where the 'Send email' input process sends to
+    'default_to' => '',
+
+    // Only used by the mailersend transport. Create a key in the MailerSend
+    // dashboard. The sending domain has to be verified there, and from_email
+    // above has to be an address on it.
+    'mailersend_api_key' => ''
+),
+
+// SMTP relay connection, used by the smtp transport
+"smtp"=>array(
     'host'=>"",
     // 25, 465, 587
     'port'=>"",
-    // comment lines below that dont apply
-    // ssl, tls
+    // ssl or tls, leave empty for none
     'encryption'=>"",
     'username'=>"",
-    'password'=>""
+    'password'=>"",
+    // Socket timeout in seconds
+    'timeout'=>30
 ),
+
+// -----------------------------------------------------------------------
+// Logging
+// -----------------------------------------------------------------------
 
 // Log file configuration
 "log"=>array(
@@ -209,13 +299,30 @@ $_settings = array(
     "level" => 2
 ),
 
+// -----------------------------------------------------------------------
+// Modules
+// -----------------------------------------------------------------------
+
 "device"=>array(
-    "enable_UDP_broadcast" => true
+    // Hide the device menu entry
+    'hide_menu' => false
 ),
 
-"cydynni"=>array(),
+// Apps
+"app"=>array(
+    // Check and migrate the app module database tables on load. Set to false
+    // to skip the check once the schema is up to date.
+    'auto_migrate' => true
+    // Comma separated list of app names to hide from the app list, e.g my_solar_app
+    //,'hidden' => ''
+    // Key that allows myheatpump daily stats to be cleared without a write
+    // session. Leave it out unless you need it. An empty value would match an
+    // empty request.
+    //,'clearkey' => ''
+),
 
 "postprocess"=>array(
-    "cron_enabled"=>0
+    // Let the postprocess module run its jobs from cron.
+    "cron_enabled" => 0
 )
 );

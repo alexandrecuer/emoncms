@@ -50,13 +50,20 @@ function feed_controller()
             if (!$session['read'] && !$session['public_userid']) {
                 return "";
             }
-            return view("Modules/feed/Views/feedlist_view.php");
+            return view("Modules/feed/Views/feed_list.php");
         } elseif ($route->action == "api") {
             if (!$session['read'] && !$session['public_userid']) {
                 return "";
             }
-            require "Modules/feed/feed_api_obj.php";
-            return view("Lib/api_tool_view.php",array("title"=>tr("Feed API"), "api"=>feed_api_obj(), "selected_api"=>8));
+            require_once "Modules/feed/feed_api_obj.php";
+            $api = array();
+            foreach (feed_api_obj() as $endpoint) { $endpoint['module'] = "feed"; $api[] = $endpoint; }
+            return view("Lib/api_explorer_view.php", array(
+                "title"=>tr("Feed API"),
+                "sub"=>tr("Use the feed API to read timeseries data recorded in emoncms feeds"),
+                "api"=>$api, "show_docs_link"=>true, "standalone"=>true,
+                "apikeys"=>session_apikeys()
+            ));
         } elseif (!$session['read']) {
             return ''; // empty strings force user back to login
         }
@@ -97,6 +104,10 @@ function feed_controller()
             return $feed->update_user_feeds_size($session['userid']);
         } elseif ($route->action == "buffersize" && $session['write']) {
             return $feed->get_buffer_size();
+        } elseif ($route->action == 'set-multiple' && $session['write']) {
+            if (isset($_POST['feeds'])) {
+                return $feed->set_fields_multiple($session['userid'], $_POST['feeds']);
+            }
         // To "fetch" multiple feed values in a single request
         // http://emoncms.org/feed/fetch.json?ids=123,567,890
         } elseif ($route->action == "fetch") {
@@ -171,8 +182,10 @@ function feed_controller()
                             $results[$index] = array('feedid'=>$feedid);
                             if (!isset($_GET['split'])) {
 
-                                if (isset($averages[$index]) && $averages[$index]) $average = $averages[$index]; else $average = 0;
-                                if (isset($deltas[$index]) && $deltas[$index]) $delta = $deltas[$index]; else $delta = 0;
+                                if (isset($averages[$index]) && $averages[$index]) $average = $averages[$index];
+                                if (isset($deltas[$index])) $delta = $deltas[$index];
+                                elseif (isset($deltas[0])) $delta = $deltas[0]; 
+                                else $delta = 0;
 
                                 if ($feed->get($feedid)["engine"]==9) {
                                     $results[$index]['data'] = $feed->get_batch($feedid);

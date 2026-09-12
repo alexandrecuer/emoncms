@@ -21,10 +21,9 @@ if (file_exists(dirname(__FILE__)."/settings.php")) {
     require_once('default-settings.php');
     require_once('settings.php');
     if (!isset($settings)) {
-        require_once('Lib/process_old_settings.php');
-        //$settings_error = true;
-        //$settings_error_title = "settings.php file error";
-        //$settings_error_message = "It looks like you are using an old version of settings.php try re-creating your settings.php file from default-settings.php";
+        $settings_error = true;
+        $settings_error_title = "old settings.php format";
+        $settings_error_message = "Your settings.php sets one variable per setting. That format is no longer supported. Re-create settings.php from example.settings.php, or switch to settings.ini using example.settings.ini as the template.";
     } else {
         $settings = array_replace_recursive($_settings, $settings);
     }
@@ -80,8 +79,14 @@ function ini_merge($defaults, $overrides)
 {
     foreach ($overrides as $k => $v) {
         if (is_array($v)) {
+            if (!isset($defaults[$k]) || !is_array($defaults[$k])) {
+                $defaults[$k] = array();
+            }
             $defaults[$k] = ini_merge($defaults[$k], $v);
         } else {
+            if (!isset($defaults[$k])) {
+                $defaults[$k] = null;
+            }
             $defaults[$k] = resolve_env_vars($v, $defaults[$k]);
 #            $defaults[$k] = $v;
         }

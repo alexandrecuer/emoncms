@@ -76,6 +76,11 @@ function input_controller()
                     $result = $param->sha256base64_response;
                 }
             } else {
+                // Reject the batch with 400 so that the client can tell data we
+                // will never accept from a problem worth retrying. Without a
+                // status code a client can only compare the body against "ok",
+                // and will retry a batch that can never succeed forever.
+                header($_SERVER["SERVER_PROTOCOL"]." 400 Bad Request");
                 $result = '{"success": false, "message": "'.str_replace("\"","'",$result).'"}';
                 $log = new EmonLogger(__FILE__);
                 $log->error($result." for User: ".$session['userid']);
@@ -92,6 +97,10 @@ function input_controller()
         } elseif ($route->action == "set-node-input-descriptions") {
             if (isset($_GET['node']) && isset($_GET['names'])) {
                  return $input->set_node_input_descriptions($session['userid'],$_GET['node'],$_GET['names']);
+            }
+        } elseif ($route->action == 'set-descriptions') {
+            if (isset($_POST['inputs'])) {
+                return $input->set_descriptions_multiple($session['userid'], $_POST['inputs']);
             }
         } elseif (isset($_GET['inputid']) && $input->belongs_to_user($session['userid'],get("inputid"))) {
             if ($route->action == 'set') {
@@ -132,7 +141,15 @@ function input_controller()
         elseif ($route->action == 'api') {
             $route->format = "html";
             textdomain("messages");
-            return view("Modules/input/Views/input_api.php", array());
+            require_once "Modules/input/input_api_obj.php";
+            $api = array();
+            foreach (input_api_obj() as $endpoint) { $endpoint['module'] = "input"; $api[] = $endpoint; }
+            return view("Lib/api_explorer_view.php", array(
+                "title"=>tr("Input API"),
+                "sub"=>tr("Use the input API to post data from your own devices and scripts"),
+                "api"=>$api, "show_docs_link"=>true, "standalone"=>true,
+                "apikeys"=>session_apikeys()
+            ));
         } elseif ($route->action == 'view') {
             $route->format = "html";
             textdomain("messages");

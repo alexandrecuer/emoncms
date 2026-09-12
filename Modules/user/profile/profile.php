@@ -10,14 +10,17 @@
 */
 // no direct access
 defined('EMONCMS_EXEC') or die('Restricted access');
-global $path; $v=4;
+
+// view() only brings $path into scope, and the gravatar hash below is rendered
+// from the session user's own address
+global $session;
+
+load_css("Modules/user/profile/profile.css");
+load_js("Lib/js/clipboard.js");
+load_js("Lib/js/qrcode.js");
+load_js("Modules/user/user.js");
+load_js("Lib/js/vue.global.prod-3.5.22.min.js");
 ?>
-<link href="<?php echo $path; ?>Modules/user/profile/profile.css?v=<?php echo $v; ?>" rel="stylesheet">
-<script type="text/javascript" src="<?php echo $path; ?>Modules/user/profile/md5.js?v=<?php echo $v; ?>"></script>
-<script type="text/javascript" src="<?php echo $path; ?>Lib/misc/qrcode.js?v=<?php echo $v; ?>"></script>
-<script type="text/javascript" src="<?php echo $path; ?>Lib/misc/clipboard.js?v=<?php echo $v; ?>"></script>
-<script type="text/javascript" src="<?php echo $path; ?>Modules/user/user.js?v=<?php echo $v; ?>"></script>
-<script src="<?php echo $path; ?>Lib/vue.min.js"></script>
 
 <div id="app" v-cloak>
   <h3><?php echo tr('My Account'); ?></h3>
@@ -96,7 +99,7 @@ global $path; $v=4;
     <tr>
       <td class="muted"><?php echo tr('Gravatar'); ?></td>
       <td>
-        <img v-if="!edit.gravatar" style="border: 1px solid #ccc; padding:2px" :src="'https://www.gravatar.com/avatar/'+CryptoJS.MD5(user.gravatar)" />      
+        <img v-if="!edit.gravatar && gravatarUrl" style="border: 1px solid #ccc; padding:2px" :src="gravatarUrl" />
         <div v-else class="input-append">
           <input type="text" style="width:220px" v-model="user.gravatar"/>
           <button class="btn" @click="save('gravatar')"><i class="icon-ok"></i></button>
@@ -189,6 +192,12 @@ global $path; $v=4;
       <div class="color-box sidebarcolor" name="light" style="background-color:#eee"></div>
     </td>
   </tr>
+  <tr>
+    <td class="muted"><?php echo tr('Archived features'); ?></td>
+    <td>
+      <label><input type="checkbox" id="show-archived"> <?php echo tr('Show archived features (e.g. Visualization)'); ?></label>
+    </td>
+  </tr>
 </table>
 
 <div style="background-color:#f0f0f0; padding:20px; max-width:360px">
@@ -257,8 +266,14 @@ global $path; $v=4;
 </div>
 
 <script>
+var gravatar_enabled = <?php echo json_encode(gravatar_enabled()); ?>;
+// sha256 of the stored address, and the only hash the profile page uses. The
+// browser cannot compute it: user/set normalises the address before storing it,
+// so what was typed here and what the account actually has can differ. Saving a
+// new address reloads the page, see save() in profile.js.
+var gravatar_hash = <?php echo json_encode($session["gravatar"] ? hash('sha256', strtolower(trim($session["gravatar"]))) : ''); ?>;
 var languages = <?php echo json_encode(get_available_languages_with_names()); ?>;
 var translation_status = <?php echo json_encode(get_translation_status()); ?>;
 var str_passwords_do_not_match = "<?php echo tr('Passwords do not match'); ?>";
 </script>
-<script type="text/javascript" src="<?php echo $path; ?>Modules/user/profile/profile.js?v=<?php echo $v; ?>"></script>
+<?php load_js("Modules/user/profile/profile.js"); ?>

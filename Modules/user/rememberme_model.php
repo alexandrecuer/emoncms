@@ -47,7 +47,7 @@ class Rememberme {
     // ---------------------------------------------------------------------------------------------------------
     public function setCookie($content,$expire)
     {
-        $this->log->info("setCookie: $content $expire");
+        $this->log->info("setCookie: $expire");
 
         if (is_https()) {
             $this->secure = true;
@@ -208,6 +208,21 @@ class Rememberme {
         return $this->cookieName;
     }
 
+    /**
+     * Revoke every remember me token held for a user, on any device.
+     *
+     * Called after a credential change (password reset in particular): without
+     * this, a persistent cookie issued before the reset would keep working,
+     * which defeats the point of resetting a password you believe is known to
+     * someone else.
+     *
+     * @param int $userid
+     * @return bool
+     */
+    public function clearAllTriplets($userid) {
+        return $this->cleanAllTriplets((int) $userid);
+    }
+
     public function loginTokenWasInvalid() {
         return $this->lastLoginTokenWasInvalid;
     }
@@ -273,29 +288,46 @@ class Rememberme {
     private function findTriplet($cookieValues) {
         //$this->log->info("findTriplet");
 
-        if (!$stmt = $stmt = $this->mysqli->prepare("SELECT token FROM rememberme WHERE userid=? AND persistentToken=? LIMIT 1")) {
+        // The expire check belongs here, in the lookup, not only in the periodic
+        // cleanup below. The cookie's own expiry is set by the browser and can
+        // simply be edited, or the value replayed by whoever copied it, so an
+        // expireTime that is only enforced client side is not enforced at all:
+        // without this predicate a token stayed valid for as long as someone
+        // kept presenting it. An expired row is treated as absent rather than as
+        // evidence of theft, because reaching the end of the window is what is
+        // supposed to happen.
+        if (!$stmt = $this->mysqli->prepare("SELECT token FROM rememberme WHERE userid=? AND persistentToken=? AND expire>? LIMIT 1")) {
             $this->log->warn("findTriplet schema fail");
             return self::TRIPLET_NOT_FOUND;
         }
 
-        $sha1_persistentToken = sha1($cookieValues->persistentToken);
-        $stmt->bind_param("is",$cookieValues->userid,$sha1_persistentToken);
+        $hashed_persistentToken = hash('sha256', $cookieValues->persistentToken);
+        $now = date("Y-m-d H:i:s", time());
+        $stmt->bind_param("iss",$cookieValues->userid,$hashed_persistentToken,$now);
         if (!$stmt->execute()) {
             $this->log->warn("findTriplet sql fail");
         }
-        $stmt->bind_result($sha1_token);
-        $stmt->fetch();
+        $hashed_token = null;
+        $stmt->bind_result($hashed_token);
+        $fetched = $stmt->fetch();
         $stmt->close();
 
-        // sha1 of token match: triplet found
-        if ($sha1_token==sha1($cookieValues->token)) {
-            $this->log->info("findTriplet TRIPLET_FOUND");
-            return self::TRIPLET_FOUND;
-
-        // false will occur when there are no entries
-        } elseif ($sha1_token==false) {
+        // fetch() returns true when a row was found, null when no rows exist
+        if ($fetched !== true) {
             $this->log->info("findTriplet TRIPLET_NOT_FOUND");
             return self::TRIPLET_NOT_FOUND;
+        }
+
+        // Row found but token is null or empty — legacy (pre-sha256) or corrupt session
+        if ($hashed_token === null || $hashed_token === "") {
+            $this->log->info("findTriplet: Legacy or null token found, invalidating session");
+            return self::TRIPLET_INVALID;
+        }
+
+        // sha256 of token match: triplet found
+        if (hash_equals((string)$hashed_token, hash('sha256', (string)$cookieValues->token))) {
+            $this->log->info("findTriplet TRIPLET_FOUND");
+            return self::TRIPLET_FOUND;
 
         // token does not match query token
         } else {
@@ -317,11 +349,18 @@ class Rememberme {
             return false;
         }
 
-        $sha1_token = sha1($cookieValues->token);
-        $sha1_persistentToken = sha1($cookieValues->persistentToken);
+        $hashed_token = hash('sha256', $cookieValues->token);
+        $hashed_persistentToken = hash('sha256', $cookieValues->persistentToken);
 
-        $stmt->bind_param("isss",$cookieValues->userid,$sha1_token,$sha1_persistentToken,$date);
-        if ($stmt->execute()) {
+        $stmt->bind_param("isss",$cookieValues->userid,$hashed_token,$hashed_persistentToken,$date);
+        try {
+            $result = $stmt->execute();
+        } catch (mysqli_sql_exception $e) {
+            $this->log->warn("storeTriplet sql fail: " . $e->getMessage() . " - database schema may need updating");
+            $stmt->close();
+            return false;
+        }
+        if ($result) {
             $stmt->close();
             return true;
         } else {
@@ -343,8 +382,8 @@ class Rememberme {
             return false;
         }
 
-        $sha1_persistentToken = sha1($cookieValues->persistentToken);
-        $stmt->bind_param("is",$cookieValues->userid,$sha1_persistentToken);
+        $hashed_persistentToken = hash('sha256', $cookieValues->persistentToken);
+        $stmt->bind_param("is",$cookieValues->userid,$hashed_persistentToken);
         if ($stmt->execute()) {
             $this->log->info("cleanTriplet success");
             $this->cleanExpiredTriplets($cookieValues->userid);
@@ -368,46 +407,40 @@ class Rememberme {
         $stmt->bind_param("i",$userid);
 
         if ($stmt->execute()) {
+            $stmt->close();
             return true;
         } else {
+            $stmt->close();
             $this->log->warn("cleanAllTriplets sql fail");
             return false;
         }
     }
 
     // ---------------------------------------------------------------------------------------------------------
-    // Scans through all entries for a given user to check if they have expired
+    // Removes expired entries for a given user
     // ---------------------------------------------------------------------------------------------------------
     private function cleanExpiredTriplets($userid)
     {
-        $date = date("Y-m-d H:i:s", time());
+        // One statement rather than a select and a delete per row: findTriplet
+        // already refuses expired tokens, so this is only housekeeping and does
+        // not need to read back what it removed.
+        //
+        // The 5 minute grace is kept. Both the stored expire and the comparison
+        // are generated by PHP on the same host, so it is not really guarding
+        // against clock skew, but deleting a row the very second it lapses gains
+        // nothing and the margin costs nothing.
+        $cutoff = date("Y-m-d H:i:s", time() - 300);
 
-        // Add 5-minute grace period for clock skew
-        $grace_period = 300; // 5 minutes
-
-        $stmt = $this->mysqli->prepare("SELECT expire FROM rememberme WHERE userid=?");
-        $stmt->bind_param("i",$userid);
-        $stmt->execute();
-        $stmt->bind_result($expire);
-
-        $expire_list = array();
-        while ($stmt->fetch()) $expire_list[] = $expire;
+        $stmt = $this->mysqli->prepare("DELETE FROM rememberme WHERE userid=? AND expire<?");
+        $stmt->bind_param("is",$userid,$cutoff);
+        if (!$stmt->execute()) {
+            $this->log->warn("cleanExpiredTriplets sql fail userid:$userid");
+            $stmt->close();
+            return;
+        }
+        $deleted = $stmt->affected_rows;
         $stmt->close();
 
-        $overdue_count = 0;
-        foreach ($expire_list as $expire)
-        {
-            $seconds_overdue = time() - strtotime($expire);
-            if ($seconds_overdue>$grace_period) {
-                $overdue_count++;
-                $stmt = $this->mysqli->prepare("DELETE FROM rememberme WHERE userid=? AND expire=?");
-                $stmt->bind_param("is",$userid,$expire);
-                if (!$stmt->execute()) {
-                    $this->log->warn("could not delete expired triplet $userid $expire");
-                }
-                $stmt->close();
-            }
-        }
-        if ($overdue_count>0) $this->log->info("Deleted $overdue_count expired");
+        if ($deleted>0) $this->log->info("Deleted $deleted expired");
     }
 }

@@ -194,6 +194,15 @@ if ($route->controller=="version") {
     echo version();
     exit;
 }
+// Machine readable API documentation for AI assistants (llms.txt convention):
+// /llms.txt is a short index, /llms-full.txt the complete reference, both
+// generated from the same definitions as the site/api explorer
+if (($route->controller=="llms" || $route->controller=="llms-full") && $route->format=="txt") {
+    require_once "Lib/api_docs_export.php";
+    header('Content-Type: text/plain; charset=utf-8');
+    echo $route->controller=="llms" ? api_docs_llms_txt() : api_docs_markdown();
+    exit;
+}
 
 if (get('embed')==1) {
     $embed = 1;
@@ -207,15 +216,7 @@ if ($route->isRouteNotDefined()) {
     if ($settings["interface"]["enable_admin_ui"]) {
         if (file_exists("Modules/setup")) {
             require "Modules/setup/setup_model.php";
-            $setup = new Setup($mysqli);
-            
-            if ($setup->status()=="unconfigured") {
-                // Provide special setup access to WIFI module functions
-                $_SESSION['setup_access'] = true;
-            } else {
-                $_SESSION['setup_access'] = false;
-            }
-            
+            $setup = new Setup($mysqli);   
             // Either show setup interface if unconfigured or if access point login
             if ($setup->status()=="unconfigured" || $route->is_ap) {
                 $settings["interface"]["default_controller"] = "setup";
@@ -391,8 +392,6 @@ if ($route->format == 'json') {
 
         $output['menu'] = $menu;
 
-        $output['svg_icons'] = view("Theme/svg_icons.svg", array());
-
         // add css class names to <body> tag based on controller's options
         $output['page_classes'][] = $route->controller;
 
@@ -404,8 +403,11 @@ if ($route->format == 'json') {
         print view("Theme/theme.php", $output);
     }
 
-} elseif ($route->format == 'text') {
+} elseif ($route->format == 'text' || $route->format == 'txt') {
     header('Content-Type: text/plain');
+    print $output['content'];
+} elseif ($route->format == 'md') {
+    header('Content-Type: text/markdown; charset=utf-8');
     print $output['content'];
 } elseif ($route->format == 'csv') {
     header('Content-Type: text/csv');

@@ -88,13 +88,13 @@ class Eventp_ProcessList
               "nochange"=>true,
               "input_context" => true,
               "virtual_feed_context" => false,
-              "description"=>tr("<p>Send an email to the user with the specified body. Email sent to user's email address or default set in config.</p><p>Supported template tags to customize body: {type}, {id}, {key}, {name}, {node}, {time}, {value}</p><p>Example body text: At {time} your {type} from {node} with key {key} named {name} had value {value}.</p>")
+              "description"=>tr("<p>Send an email to the user with the specified body. Email sent to user's email address or default set in settings.ini.</p><p>Supported template tags to customize body: {type}, {id}, {key}, {name}, {node}, {time}, {value}</p><p>Example body text: At {time} your {type} from {node} with key {key} named {name} had value {value}.</p>")
            )
         );
     }
 
     public function sendEmail($emailbody, $time, $value, $options) {
-        global $user, $session, $settings;
+        global $user, $session;
 
         $timeformated = DateTime::createFromFormat("U", (int)$time);
         if(!empty($this->parentProcessModel->timezone)) $timeformated->setTimezone(new DateTimeZone($this->parentProcessModel->timezone));
@@ -113,12 +113,13 @@ class Eventp_ProcessList
             // Not supported for VIRTUAL FEEDS
         }
 
+        require_once "Lib/email.php";
+        $email = new Email();
+
         //need to get an email address from the config file or the form ?
-        $emailto = $settings['smtp']['default_emailto'];
+        $emailto = $email->default_to();
 
         if (!empty($emailto)) {
-            require_once "Lib/email.php";
-            $email = new Email();
             //$email->from(from);
             $email->to($emailto);
             $email->subject('Emoncms event alert');

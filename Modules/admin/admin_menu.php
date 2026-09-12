@@ -23,19 +23,13 @@ if ($session["write"] && $session["admin"]) {
             ),
             "components"=>array(
                 "name"=>tr("Components"),
-                "href"=>"admin/components", 
-                "order"=>1, 
-                "icon"=>"input"
-            ),
-            "firmware"=>array(
-                "name"=>tr("Serial Monitor"),
-                "href"=>"admin/serial", 
+                "href"=>"admin/component", 
                 "order"=>1, 
                 "icon"=>"input"
             ),
             "serialconfig"=>array(
                 "name"=>tr("Serial Config"),
-                "href"=>"admin/serconfig", 
+                "href"=>"admin/serial", 
                 "order"=>1, 
                 "icon"=>"input"
             ),

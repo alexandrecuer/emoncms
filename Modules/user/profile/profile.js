@@ -2,15 +2,15 @@ var user_data = user.get();
 var last_username = ""+user_data.username
 var last_email = ""+user_data.email
 var last_language = ""+user_data.language;
+var last_gravatar = ""+user_data.gravatar;
 
 var timezones = [];
 $.ajax({ url: path+"user/gettimezones.json", dataType: 'json', async: true, success: function(result) {
     app.timezones = result;
 }});
 
-var app = new Vue({
-    el: '#app',
-    data: {
+var app = Vue.createApp({
+    data() { return {
         user: user_data,
         timezones: timezones,
         languages: languages,
@@ -30,6 +30,15 @@ var app = new Vue({
             current: "",
             new: "",
             repeat: ""
+        },
+        gravatarHash: gravatar_hash
+    }; },
+    computed: {
+        gravatarUrl: function() {
+            // avatars are served via the local proxy rather than gravatar.com directly,
+            // and the proxy is only available where its cache directory exists
+            if (!gravatar_enabled || !this.gravatarHash) return '';
+            return path + 'user/gravatar?hash=' + this.gravatarHash + '&s=80';
         }
     },
     methods: {
@@ -39,8 +48,13 @@ var app = new Vue({
         save: function(key) {
             user.set(app.user);
             app.edit[key] = false;
-            // refresh the page if the language has been changed.
-            if (app.user.language!=last_language) {
+            // Reload after a language change so the new translation applies, and
+            // after a gravatar change because the avatar hash is rendered server
+            // side, see gravatar_hash in profile.php. Only the server knows what
+            // was actually stored: set() strips characters an address may
+            // legitimately contain, so hashing what was typed here would ask the
+            // proxy for an address the account does not have.
+            if (app.user.language!=last_language || app.user.gravatar!=last_gravatar) {
                 window.location.href = path+"user/view";
             }
         },
@@ -131,7 +145,7 @@ var app = new Vue({
             $('#modalNewApikey').modal('show');
         }
     }
-});
+}).mount('#app');
 
 //QR COde Generation
 var urlCleaned = window.location.href.replace("user/view" ,"");
@@ -192,6 +206,14 @@ $(".sidebarcolor").click(function() {
     $("html").removeClass('sidebar-'+current_themesidebar).addClass('sidebar-'+themesidebar);
     localStorage.setItem('themesidebar', themesidebar);
     $(".sidebarcolor[name='"+current_themesidebar+"']").removeClass("color-box-active"); 
-    $(".sidebarcolor[name='"+themesidebar+"']").addClass("color-box-active"); 
+    $(".sidebarcolor[name='"+themesidebar+"']").addClass("color-box-active");
     current_themesidebar = themesidebar
+});
+
+// Archived features toggle, used in conjunction with code in Theme/menu/menu.js
+$("#show-archived").prop("checked", localStorage.getItem('show_archived') === 'true');
+$("#show-archived").change(function() {
+    localStorage.setItem('show_archived', this.checked ? 'true' : 'false');
+    // Reload page
+    window.location.reload();
 });
