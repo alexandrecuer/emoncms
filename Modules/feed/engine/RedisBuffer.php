@@ -165,7 +165,7 @@ class RedisBuffer implements engine_methods
             $j=0;
             while ($j<$len) {
                 $row=array_slice($tab,$j,$nbcols);
-                $time=$row[0]*1000;
+                $time=$row[0];
                 $data[]=array($time,$row[2]);
                 $j+=4;
             }
